@@ -72,7 +72,7 @@ function App() {
   const [commonSelected, setCommonSelected] = useState([]);
   const [compareMode, setCompareMode] = useState("text"); // 'numeric' or 'text'
   const [comparisonType, setComparisonType] = useState("union"); // 'intersection' or 'union'
-  const [caseSensitive, setCaseSensitive] = useState(true); // New state for case sensitivity
+  const [caseSensitive, setCaseSensitive] = useState(false); // New state for case sensitivity
   const [resultsSorting, setResultsSorting] = useState({}); // To track sorting state for result lists
 
   // Compare all lists
