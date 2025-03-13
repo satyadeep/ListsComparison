@@ -71,7 +71,7 @@ function App() {
   const [selectedLists, setSelectedLists] = useState([]);
   const [commonSelected, setCommonSelected] = useState([]);
   const [compareMode, setCompareMode] = useState("text"); // 'numeric' or 'text'
-  const [comparisonType, setComparisonType] = useState("intersection"); // 'intersection' or 'union'
+  const [comparisonType, setComparisonType] = useState("union"); // 'intersection' or 'union'
   const [caseSensitive, setCaseSensitive] = useState(true); // New state for case sensitivity
   const [resultsSorting, setResultsSorting] = useState({}); // To track sorting state for result lists
 
@@ -190,7 +190,8 @@ function App() {
   }, [selectedLists, lists, comparisonType, compareMode, caseSensitive]);
 
   // Array of colors to use for the list counts
-  const listColors = ["primary", "secondary", "success", "warning", "error"];
+  // const listColors = ["primary", "secondary", "success", "warning", "error"];
+  const listColors = ["#585123", "#ef476f", "#006494", "#8338ec", "#2f3e46"];
 
   // Handle trimming spaces in a list
   const handleTrimSpaces = (listId) => {
@@ -867,10 +868,15 @@ function App() {
                           Only in List {listIndex + 1}
                         </Typography>
                         <Chip
-                          label={result.uniqueValues.length}
+                          label={`Total: ${result.uniqueValues.length}`}
                           size="small"
-                          color={listColors[listIndex % listColors.length]}
-                          sx={{ fontWeight: "bold" }}
+                          // bgcolor={listColors[listIndex % listColors.length]}
+                          // color="white"
+                          sx={{
+                            fontWeight: "bold",
+                            bgcolor: listColors[listIndex % listColors.length],
+                            color: "white",
+                          }}
                         />
                       </Box>
                     }
@@ -894,10 +900,10 @@ function App() {
                     Common to All Lists
                   </Typography>
                   <Chip
-                    label={
+                    label={`Total: ${
                       results.find((r) => r.listId === "common")?.uniqueValues
                         .length || 0
-                    }
+                    }`}
                     size="small"
                     color="info"
                     sx={{ fontWeight: "bold" }}

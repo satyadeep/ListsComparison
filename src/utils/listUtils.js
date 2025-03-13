@@ -242,3 +242,250 @@ export const getSortedItems = (
 export const handleCaseSensitivityChange = (event, setCaseSensitive) => {
   setCaseSensitive(event.target.checked);
 };
+
+// Handle trimming spaces in a list
+export const handleTrimSpaces = (listId, lists, setLists) => {
+  setLists((prevLists) =>
+    prevLists.map((list) =>
+      list.id === listId
+        ? {
+            ...list,
+            content: list.content
+              .split(/[,\n]+/)
+              .map((item) => item.trim())
+              .join("\n"),
+          }
+        : list
+    )
+  );
+};
+
+// Handle clearing a specific list's content
+export const handleClearList = (listId, setLists) => {
+  setLists((prevLists) =>
+    prevLists.map((list) =>
+      list.id === listId ? { ...list, content: "" } : list
+    )
+  );
+};
+
+// Text case transformation functions
+export const convertToUppercase = (listId, setLists) => {
+  setLists((prevLists) =>
+    prevLists.map((list) =>
+      list.id === listId
+        ? {
+            ...list,
+            content: list.content.toUpperCase(),
+          }
+        : list
+    )
+  );
+};
+
+export const convertToLowercase = (listId, setLists) => {
+  setLists((prevLists) =>
+    prevLists.map((list) =>
+      list.id === listId
+        ? {
+            ...list,
+            content: list.content.toLowerCase(),
+          }
+        : list
+    )
+  );
+};
+
+export const convertToCamelCase = (listId, setLists) => {
+  setLists((prevLists) =>
+    prevLists.map((list) =>
+      list.id === listId
+        ? {
+            ...list,
+            content: list.content
+              .split(/\n+/)
+              .map((line) => {
+                // Preserve spaces in the line, apply camelCase to individual words
+                return line.replace(/\b\w+\b/g, (word, index, fullLine) => {
+                  // Check if this is the first word in the line
+                  const precedingText = fullLine.substring(
+                    0,
+                    fullLine.indexOf(word)
+                  );
+                  const isFirstWord = !precedingText.trim();
+
+                  if (isFirstWord) {
+                    return word.toLowerCase();
+                  } else {
+                    return (
+                      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                    );
+                  }
+                });
+              })
+              .join("\n"),
+          }
+        : list
+    )
+  );
+};
+
+export const convertToPascalCase = (listId, setLists) => {
+  setLists((prevLists) =>
+    prevLists.map((list) =>
+      list.id === listId
+        ? {
+            ...list,
+            content: list.content
+              .split(/\n+/)
+              .map((line) => {
+                // Preserve spaces in the line, apply PascalCase to individual words
+                return line.replace(/\b\w+\b/g, (word) => {
+                  return (
+                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                  );
+                });
+              })
+              .join("\n"),
+          }
+        : list
+    )
+  );
+};
+
+export const convertToSentenceCase = (listId, setLists) => {
+  setLists((prevLists) =>
+    prevLists.map((list) =>
+      list.id === listId
+        ? {
+            ...list,
+            content: list.content
+              .split(/\n+/)
+              .map((line) => {
+                if (line.trim() === "") return line;
+                return (
+                  line.charAt(0).toUpperCase() + line.slice(1).toLowerCase()
+                );
+              })
+              .join("\n"),
+          }
+        : list
+    )
+  );
+};
+
+// Transformation functions for the common selected results
+export const transformCommonToUppercase = (
+  commonSelected,
+  setCommonSelected
+) => {
+  setCommonSelected(commonSelected.map((item) => String(item).toUpperCase()));
+};
+
+export const transformCommonToLowercase = (
+  commonSelected,
+  setCommonSelected
+) => {
+  setCommonSelected(commonSelected.map((item) => String(item).toLowerCase()));
+};
+
+export const transformCommonToSentenceCase = (
+  commonSelected,
+  setCommonSelected
+) => {
+  setCommonSelected(
+    commonSelected.map((item) => {
+      const str = String(item);
+      if (str.trim() === "") return str;
+      return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    })
+  );
+};
+
+export const transformCommonToCamelCase = (
+  commonSelected,
+  setCommonSelected
+) => {
+  setCommonSelected(
+    commonSelected.map((item) => {
+      const str = String(item);
+      return str.replace(/\b\w+\b/g, (word, index, fullLine) => {
+        const precedingText = fullLine.substring(0, fullLine.indexOf(word));
+        const isFirstWord = !precedingText.trim();
+
+        if (isFirstWord) {
+          return word.toLowerCase();
+        } else {
+          return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        }
+      });
+    })
+  );
+};
+
+export const transformCommonToPascalCase = (
+  commonSelected,
+  setCommonSelected
+) => {
+  setCommonSelected(
+    commonSelected.map((item) => {
+      const str = String(item);
+      return str.replace(/\b\w+\b/g, (word) => {
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      });
+    })
+  );
+};
+
+// Function to copy content to clipboard
+export const copyToClipboard = (content) => {
+  if (typeof content === "object" && Array.isArray(content)) {
+    // If content is an array, join it with newlines
+    navigator.clipboard
+      .writeText(content.join("\n"))
+      .then(() => {
+        console.log("Content copied to clipboard");
+      })
+      .catch((err) => {
+        console.error("Failed to copy: ", err);
+      });
+  } else if (typeof content === "string") {
+    // If content is already a string
+    navigator.clipboard
+      .writeText(content)
+      .then(() => {
+        console.log("Content copied to clipboard");
+      })
+      .catch((err) => {
+        console.error("Failed to copy: ", err);
+      });
+  }
+};
+
+// Function that combines trimming spaces and removing duplicates
+export const trimAndRemoveDuplicates = (
+  listId,
+  lists,
+  setLists,
+  compareMode,
+  caseSensitive
+) => {
+  // First trim spaces
+  handleTrimSpaces(listId, lists, setLists);
+
+  // Then find the list with updated trimmed content and remove duplicates
+  const listIndex = lists.findIndex((l) => l.id === listId);
+  if (listIndex !== -1) {
+    const trimmedContent = parseInput(
+      lists[listIndex].content,
+      compareMode,
+      caseSensitive
+    );
+    const uniqueContent = removeDuplicates(
+      trimmedContent,
+      compareMode,
+      caseSensitive
+    );
+    handleListChange(listId, uniqueContent.join("\n"), lists, setLists);
+  }
+};
