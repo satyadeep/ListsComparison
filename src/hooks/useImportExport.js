@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { parseExportedFormatWithCategories } from "../utils/listUtils";
+import { exportToExcel } from "../utils/excelExport";
 
 /**
  * Custom hook for handling import and export functionality
@@ -87,8 +88,8 @@ export function useImportExport(
     [lists, setLists, setImmediateInputs, setNotification, setCategories]
   );
 
-  // Export data to a file
-  const exportData = useCallback(
+  // Export data to a text file
+  const exportTextData = useCallback(
     (results) => {
       try {
         console.log("Starting export process...");
@@ -155,7 +156,7 @@ export function useImportExport(
 
         setNotification({
           open: true,
-          message: "Data exported successfully",
+          message: "Data exported successfully as text",
           severity: "success",
         });
       } catch (error) {
@@ -170,8 +171,30 @@ export function useImportExport(
     [lists, categories, setNotification]
   );
 
+  // Export data to an Excel file
+  const exportExcelData = useCallback(
+    (results, commonSelected, comparisonType) => {
+      const success = exportToExcel(
+        lists,
+        results,
+        commonSelected,
+        comparisonType
+      );
+
+      if (success) {
+        setNotification({
+          open: true,
+          message: "Data exported successfully as Excel",
+          severity: "success",
+        });
+      }
+    },
+    [lists, setNotification]
+  );
+
   return {
     importData,
-    exportData,
+    exportTextData,
+    exportExcelData,
   };
 }

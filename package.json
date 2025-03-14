@@ -20,7 +20,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "postinstall": "echo 'For Excel export functionality, make sure to run: npm install xlsx'"
   },
   "eslintConfig": {
     "extends": [

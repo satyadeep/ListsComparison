@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import useDebounce from "../hooks/useDebounce";
-import { Container, Snackbar, Alert, CssBaseline } from "@mui/material";
 import {
-  compareAllLists,
-  compareSelectedLists,
-  clearAll,
-} from "../utils/listUtils";
-import { saveConfiguration, loadConfiguration } from "../utils/dbUtils";
-import { applyFilter } from "../utils/filterUtils";
-import AppHeader from "./AppHeader";
+  Container,
+  Snackbar,
+  Alert,
+  CssBaseline,
+  AppBar,
+  Toolbar,
+  Typography,
+  Box,
+} from "@mui/material";
+import ThemeToggle from "./ThemeToggle";
+import ImportExportButtons from "./ImportExportButtons";
+import ConfigManager from "./ConfigManager";
 import ControlPanel from "./ControlPanel";
 import ListsSection from "./ListsSection";
 import ResultsSection from "./ResultsSection";
@@ -20,6 +24,14 @@ import ListRenameDialog from "./ListRenameDialog";
 import { useListNaming } from "../hooks/useListNaming";
 import { useImportExport } from "../hooks/useImportExport";
 import { useNotification } from "../hooks/useNotification";
+import { exportToExcel } from "../utils/excelExport"; // Add this import
+import {
+  compareAllLists,
+  compareSelectedLists,
+  clearAll,
+} from "../utils/listUtils"; // Add compareAllLists import here
+import { saveConfiguration, loadConfiguration } from "../utils/dbUtils";
+import { applyFilter } from "../utils/filterUtils"; // Add this import
 
 function AppContent() {
   // State declarations (keeping all the state here for now)
@@ -68,8 +80,8 @@ function AppContent() {
   // Use notification hook
   const { showNotification, closeNotification } = useNotification();
 
-  // Use import/export hook with all necessary parameters
-  const { importData, exportData } = useImportExport(
+  // Use the updated import/export hook with Excel export functionality
+  const { importData, exportTextData, exportExcelData } = useImportExport(
     lists,
     setLists,
     setImmediateInputs,
@@ -77,6 +89,44 @@ function AppContent() {
     categories,
     setCategories
   );
+
+  // Handle Excel export
+  const handleExportExcel = useCallback(() => {
+    console.log("Excel export function called in AppContent");
+    try {
+      exportToExcel(
+        lists,
+        results,
+        commonSelected,
+        comparisonType,
+        selectedLists
+      )
+        .then((success) => {
+          if (success) {
+            setNotification({
+              open: true,
+              message: "Data exported to Excel successfully",
+              severity: "success",
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Excel export error:", error);
+          setNotification({
+            open: true,
+            message: `Failed to export to Excel: ${error.message}`,
+            severity: "error",
+          });
+        });
+    } catch (error) {
+      console.error("Excel export error:", error);
+      setNotification({
+        open: true,
+        message: `Failed to export to Excel: ${error.message}`,
+        severity: "error",
+      });
+    }
+  }, [lists, results, commonSelected, comparisonType, selectedLists]);
 
   // Update lists when debounced inputs change
   useEffect(() => {
@@ -664,12 +714,37 @@ function AppContent() {
   return (
     <>
       <CssBaseline />
-      <AppHeader
-        onSaveConfiguration={handleSaveConfiguration}
-        onLoadConfiguration={handleLoadConfiguration}
-        onImport={importData}
-        onExport={() => exportData(results)}
-      />
+      <AppBar position="static" color="primary" sx={{ mb: 4, zIndex: 1300 }}>
+        <Toolbar
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            padding: "0 16px",
+          }}
+        >
+          <Typography variant="h5">List Comparison Tool</Typography>
+          <Box
+            sx={{
+              display: "flex",
+              gap: 2,
+              alignItems: "center",
+              zIndex: 1400,
+              position: "relative",
+            }}
+          >
+            <ThemeToggle />
+            <ImportExportButtons
+              onImport={importData}
+              onExport={exportTextData}
+              onExportExcel={handleExportExcel} // Pass the Excel export handler
+            />
+            <ConfigManager
+              onSave={handleSaveConfiguration}
+              onLoad={handleLoadConfiguration}
+            />
+          </Box>
+        </Toolbar>
+      </AppBar>
 
       <Container>
         <ControlPanel
