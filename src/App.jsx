@@ -46,6 +46,8 @@ import AbcIcon from "@mui/icons-material/Abc"; // Added for lowercase
 import FormatColorTextIcon from "@mui/icons-material/FormatColorText"; // Added for camelCase/PascalCase
 import TextFormatIcon from "@mui/icons-material/TextFormat"; // Added for sentence case
 import SettingsIcon from "@mui/icons-material/Settings";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import Badge from "@mui/material/Badge";
 import {
   parseInput,
   removeDuplicates,
@@ -85,6 +87,8 @@ import ImportExportButtons from "./components/ImportExportButtons";
 import ListSettingsDialog from "./components/ListSettingsDialog";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import ThemeToggle from "./components/ThemeToggle";
+import FilterDialog from "./components/FilterDialog";
+import { applyFilter } from "./utils/filterUtils";
 
 function AppContent() {
   const muiTheme = useMuiTheme();
@@ -199,30 +203,25 @@ function AppContent() {
   // }, []);
 
   // Memoize results calculation
-  const memoizedResults = useMemo(() => {
+  const memoizedResultsCompare = useMemo(() => {
     return compareAllLists(lists, compareMode, caseSensitive);
   }, [lists, compareMode, caseSensitive]);
 
   // Update results state only when memoized results change
   useEffect(() => {
-    setResults(memoizedResults);
-  }, [memoizedResults]);
+    setResults(memoizedResultsCompare);
+  }, [memoizedResultsCompare]);
 
-  // Memoize common selected calculation
-  const memoizedCommonSelected = useMemo(() => {
-    return compareSelectedLists(
-      lists,
-      selectedLists,
-      compareMode,
-      caseSensitive,
-      comparisonType
-    );
-  }, [lists, selectedLists, compareMode, caseSensitive, comparisonType]);
-
-  // Update commonSelected state only when memoized value changes
-  useEffect(() => {
-    setCommonSelected(memoizedCommonSelected);
-  }, [memoizedCommonSelected]);
+  // // Memoize common selected calculation
+  // const memoizedCommonSelected = useMemo(() => {
+  //   return compareSelectedLists(
+  //     lists,
+  //     selectedLists,
+  //     compareMode,
+  //     caseSensitive,
+  //     comparisonType
+  //   );
+  // }, [lists, selectedLists, compareMode, caseSensitive, comparisonType]);
 
   // Create a memoized function to handle trim and remove duplicates
   const memoizedTrimAndRemoveDuplicates = useCallback(
@@ -742,6 +741,136 @@ function AppContent() {
     [lists, muiTheme]
   );
 
+  // Add state for filtering
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [currentFilteringList, setCurrentFilteringList] = useState(null);
+  const [filteredContents, setFilteredContents] = useState({});
+
+  // Handle opening the filter dialog
+  const handleOpenFilterDialog = useCallback((list) => {
+    setCurrentFilteringList(list);
+    setFilterDialogOpen(true);
+  }, []);
+
+  // Handle applying a filter
+  const handleApplyFilter = useCallback(
+    (listId, filterOptions) => {
+      if (!filterOptions) {
+        // If null, remove the filter
+        setFilteredContents((prev) => {
+          const newFiltered = { ...prev };
+          delete newFiltered[listId];
+          return newFiltered;
+        });
+
+        // Update the list state to show it's no longer filtered
+        setLists((prevLists) =>
+          prevLists.map((list) =>
+            list.id === listId ? { ...list, activeFilter: undefined } : list
+          )
+        );
+        return;
+      }
+
+      const list = lists.find((list) => list.id === listId);
+      if (!list) return;
+
+      try {
+        const filteredContent = applyFilter(
+          list.content,
+          filterOptions.pattern,
+          {
+            isRegex: filterOptions.isRegex,
+            isWildcard: filterOptions.isWildcard,
+            caseSensitive: filterOptions.caseSensitive,
+            invertMatch: filterOptions.invertMatch,
+            matchWholeWord: filterOptions.matchWholeWord,
+          }
+        );
+
+        // Store the filtered content
+        setFilteredContents((prev) => ({
+          ...prev,
+          [listId]: filteredContent,
+        }));
+
+        // Update the list state to show it's filtered
+        setLists((prevLists) =>
+          prevLists.map((list) =>
+            list.id === listId ? { ...list, activeFilter: filterOptions } : list
+          )
+        );
+
+        setNotification({
+          open: true,
+          message: `Filter applied to ${list.name || `List ${listId}`}`,
+          severity: "success",
+        });
+      } catch (error) {
+        console.error("Filter error:", error);
+        setNotification({
+          open: true,
+          message: "Error applying filter: " + error.message,
+          severity: "error",
+        });
+      }
+    },
+    [lists, setNotification]
+  );
+
+  // Get the effective content of a list (filtered if has active filter)
+  const getListContent = useCallback(
+    (listId) => {
+      if (filteredContents[listId] !== undefined) {
+        return filteredContents[listId];
+      }
+
+      const list = lists.find((l) => l.id === listId);
+      return list?.content || "";
+    },
+    [lists, filteredContents]
+  );
+
+  // Update result calculation to use filtered content
+  const memoizedResults = useMemo(() => {
+    // Create a temporary list array with filtered content
+    const effectiveLists = lists.map((list) => ({
+      ...list,
+      content: getListContent(list.id),
+    }));
+
+    return compareAllLists(effectiveLists, compareMode, caseSensitive);
+  }, [lists, compareMode, caseSensitive, getListContent]);
+
+  // Update common selected calculation
+  const memoizedCommonSelected = useMemo(() => {
+    // Create a temporary list array with filtered content
+    const effectiveLists = lists.map((list) => ({
+      ...list,
+      content: getListContent(list.id),
+    }));
+
+    return compareSelectedLists(
+      effectiveLists,
+      selectedLists,
+      compareMode,
+      caseSensitive,
+      comparisonType
+    );
+  }, [
+    lists,
+    selectedLists,
+    compareMode,
+    caseSensitive,
+    comparisonType,
+    getListContent,
+  ]);
+
+  // Update commonSelected state only when memoized value changes
+  useEffect(() => {
+    setCommonSelected(memoizedCommonSelected);
+  }, [memoizedCommonSelected]);
+
   return (
     <>
       <CssBaseline />
@@ -939,364 +1068,445 @@ function AppContent() {
                 <Divider sx={{ mb: 2 }} />
 
                 <Grid container spacing={3}>
-                  {categoryLists.map((list) => (
-                    <Grid item xs={12} md={6} key={list.id}>
-                      <Paper
-                        elevation={3}
-                        sx={{
-                          p: 2,
-                          backgroundColor: getThemedListColor(
-                            list.id,
-                            "background"
-                          ),
-                        }}
-                      >
-                        <Box
-                          display="flex"
-                          justifyContent="space-between"
-                          alignItems="center"
-                          mb={1}
+                  {categoryLists.map((list) => {
+                    const hasActiveFilter = !!list.activeFilter;
+                    const originalItemCount = getListItemCount(
+                      list.content,
+                      compareMode,
+                      caseSensitive
+                    );
+                    const filteredItemCount = hasActiveFilter
+                      ? getListItemCount(
+                          getListContent(list.id),
+                          compareMode,
+                          caseSensitive
+                        )
+                      : originalItemCount;
+
+                    return (
+                      <Grid item xs={12} md={6} key={list.id}>
+                        <Paper
+                          elevation={3}
+                          sx={{
+                            p: 2,
+                            backgroundColor: getThemedListColor(
+                              list.id,
+                              "background"
+                            ),
+                          }}
                         >
-                          <Box display="flex" alignItems="center">
-                            <Typography variant="h6" sx={{ mr: 1 }}>
-                              {list.name}
-                            </Typography>
-                            <Box display="flex" gap={1}>
-                              <Chip
-                                label={`Total: ${getListItemCount(
-                                  list.content,
-                                  compareMode,
-                                  caseSensitive
-                                )}`}
-                                size="small"
-                                sx={{
-                                  fontWeight: "bold",
-                                  bgcolor: getThemedListColor(
-                                    list.id,
-                                    "border"
-                                  ),
-                                  color: "white",
-                                }}
-                              />
-                              <Chip
-                                label={`Duplicates: ${getDuplicatesCount(
-                                  list.content,
-                                  compareMode
-                                )}`}
-                                size="small"
-                                sx={{
-                                  fontWeight: "bold",
-                                  bgcolor: "error.main",
-                                  color: "white",
-                                }}
-                              />
+                          <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            mb={1}
+                          >
+                            <Box display="flex" alignItems="center">
+                              <Typography variant="h6" sx={{ mr: 1 }}>
+                                {list.name}
+                              </Typography>
+                              <Box display="flex" gap={1}>
+                                <Chip
+                                  label={`Total: ${filteredItemCount}${
+                                    hasActiveFilter
+                                      ? ` / ${originalItemCount}`
+                                      : ""
+                                  }`}
+                                  size="small"
+                                  sx={{
+                                    fontWeight: "bold",
+                                    bgcolor: getThemedListColor(
+                                      list.id,
+                                      "border"
+                                    ),
+                                    color: "white",
+                                  }}
+                                />
+                                <Chip
+                                  label={`Duplicates: ${getDuplicatesCount(
+                                    getListContent(list.id),
+                                    compareMode
+                                  )}`}
+                                  size="small"
+                                  sx={{
+                                    fontWeight: "bold",
+                                    bgcolor: "error.main",
+                                    color: "white",
+                                  }}
+                                />
+                                {hasActiveFilter && (
+                                  <Chip
+                                    label="Filtered"
+                                    size="small"
+                                    color="warning"
+                                    sx={{ fontWeight: "bold" }}
+                                  />
+                                )}
+                              </Box>
+                            </Box>
+
+                            <Box>
+                              {/* Add filter button */}
+                              <Tooltip
+                                title={
+                                  hasActiveFilter
+                                    ? "Edit Filter"
+                                    : "Filter List"
+                                }
+                              >
+                                <IconButton
+                                  color={
+                                    hasActiveFilter ? "warning" : "default"
+                                  }
+                                  size="small"
+                                  onClick={() => handleOpenFilterDialog(list)}
+                                  sx={{ mr: 1 }}
+                                >
+                                  <Badge
+                                    color="warning"
+                                    variant="dot"
+                                    invisible={!hasActiveFilter}
+                                  >
+                                    <FilterListIcon fontSize="small" />
+                                  </Badge>
+                                </IconButton>
+                              </Tooltip>
+
+                              <Tooltip title="List Settings">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => openListSettings(list)}
+                                  sx={{ mr: 1 }}
+                                >
+                                  <SettingsIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+
+                              {lists.length > 2 && (
+                                <IconButton
+                                  color="error"
+                                  onClick={() =>
+                                    removeList(
+                                      list.id,
+                                      lists,
+                                      setLists,
+                                      selectedLists,
+                                      setSelectedLists
+                                    )
+                                  }
+                                  size="small"
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              )}
                             </Box>
                           </Box>
 
-                          <Box>
-                            <Tooltip title="List Settings">
-                              <IconButton
-                                size="small"
-                                onClick={() => openListSettings(list)}
-                                sx={{ mr: 1 }}
-                              >
-                                <SettingsIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
+                          {/* Show text field with original content but add a note if filtered */}
+                          {hasActiveFilter && (
+                            <Alert
+                              severity="info"
+                              sx={{ mb: 1 }}
+                              action={
+                                <Button
+                                  color="inherit"
+                                  size="small"
+                                  onClick={() =>
+                                    handleApplyFilter(list.id, null)
+                                  }
+                                >
+                                  Clear
+                                </Button>
+                              }
+                            >
+                              List is filtered. Showing {filteredItemCount} of{" "}
+                              {originalItemCount} items.
+                            </Alert>
+                          )}
 
-                            {lists.length > 2 && (
-                              <IconButton
-                                color="error"
-                                onClick={() =>
-                                  removeList(
-                                    list.id,
-                                    lists,
-                                    setLists,
-                                    selectedLists,
-                                    setSelectedLists
-                                  )
-                                }
-                                size="small"
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            )}
-                          </Box>
-                        </Box>
-                        <TextField
-                          fullWidth
-                          multiline
-                          rows={6}
-                          placeholder={
-                            compareMode === "numeric"
-                              ? "Enter numbers separated by commas or new lines"
-                              : "Enter text items separated by commas or new lines"
-                          }
-                          value={
-                            immediateInputs[list.id] !== undefined
-                              ? immediateInputs[list.id]
-                              : list.content
-                          }
-                          onChange={(e) =>
-                            handleImmediateInputChange(list.id, e.target.value)
-                          }
-                          onPaste={(e) => {
-                            setTimeout(() => {
+                          <TextField
+                            fullWidth
+                            multiline
+                            rows={6}
+                            placeholder={
+                              compareMode === "numeric"
+                                ? "Enter numbers separated by commas or new lines"
+                                : "Enter text items separated by commas or new lines"
+                            }
+                            value={
+                              immediateInputs[list.id] !== undefined
+                                ? immediateInputs[list.id]
+                                : list.content
+                            }
+                            onChange={(e) =>
                               handleImmediateInputChange(
                                 list.id,
                                 e.target.value
-                              );
-                            }, 10);
-                          }}
-                          variant="outlined"
-                          sx={{
-                            "& .MuiOutlinedInput-root": {
-                              "& .MuiOutlinedInput-notchedOutline": {
-                                borderColor: getThemedListColor(
+                              )
+                            }
+                            onPaste={(e) => {
+                              setTimeout(() => {
+                                handleImmediateInputChange(
                                   list.id,
-                                  "border"
-                                ),
-                                borderWidth: 2,
-                              },
-                              "&:hover .MuiOutlinedInput-notchedOutline": {
-                                borderColor: getThemedListColor(
-                                  list.id,
-                                  "border"
-                                ),
-                              },
-                              "&.Mui-focused .MuiOutlinedInput-notchedOutline":
-                                {
+                                  e.target.value
+                                );
+                              }, 10);
+                            }}
+                            variant="outlined"
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                "& .MuiOutlinedInput-notchedOutline": {
+                                  borderColor: getThemedListColor(
+                                    list.id,
+                                    "border"
+                                  ),
+                                  borderWidth: 2,
+                                },
+                                "&:hover .MuiOutlinedInput-notchedOutline": {
                                   borderColor: getThemedListColor(
                                     list.id,
                                     "border"
                                   ),
                                 },
-                              backgroundColor: "white",
-                            },
-                          }}
-                        />
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            mt: 1,
-                          }}
-                        >
-                          <Box>
-                            <Tooltip title="Trim spaces & remove duplicates">
-                              <IconButton
-                                size="small"
-                                onClick={() =>
-                                  memoizedTrimAndRemoveDuplicates(list.id)
-                                }
-                              >
-                                <PlaylistRemoveIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Clear list">
-                              <IconButton
-                                size="small"
-                                onClick={() => memoizedHandleClearList(list.id)}
-                                sx={{ ml: 1 }}
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                          <Box>
-                            <Tooltip title="Copy to clipboard">
-                              <IconButton
-                                size="small"
-                                onClick={() =>
-                                  memoizedCopyToClipboard(list.content)
-                                }
-                                sx={{ mx: 0.5 }}
-                              >
-                                <ContentCopyIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Sort Ascending">
-                              <IconButton
-                                size="small"
-                                onClick={() =>
-                                  handleSortWrapper(list.id, "asc")
-                                }
-                                sx={{ mx: 0.5 }}
-                              >
-                                <ArrowUpwardIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
+                                "&.Mui-focused .MuiOutlinedInput-notchedOutline":
+                                  {
+                                    borderColor: getThemedListColor(
+                                      list.id,
+                                      "border"
+                                    ),
+                                  },
+                                backgroundColor: "white",
+                              },
+                            }}
+                          />
+                          <Box
+                            sx={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              mt: 1,
+                            }}
+                          >
+                            <Box>
+                              <Tooltip title="Trim spaces & remove duplicates">
+                                <IconButton
+                                  size="small"
+                                  onClick={() =>
+                                    memoizedTrimAndRemoveDuplicates(list.id)
+                                  }
+                                >
+                                  <PlaylistRemoveIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Clear list">
+                                <IconButton
+                                  size="small"
+                                  onClick={() =>
+                                    memoizedHandleClearList(list.id)
+                                  }
+                                  sx={{ ml: 1 }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                            <Box>
+                              <Tooltip title="Copy to clipboard">
+                                <IconButton
+                                  size="small"
+                                  onClick={() =>
+                                    memoizedCopyToClipboard(list.content)
+                                  }
+                                  sx={{ mx: 0.5 }}
+                                >
+                                  <ContentCopyIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Sort Ascending">
+                                <IconButton
+                                  size="small"
+                                  onClick={() =>
+                                    handleSortWrapper(list.id, "asc")
+                                  }
+                                  sx={{ mx: 0.5 }}
+                                >
+                                  <ArrowUpwardIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
 
-                            <Tooltip title="Sort Descending">
+                              <Tooltip title="Sort Descending">
+                                <IconButton
+                                  size="small"
+                                  onClick={() =>
+                                    handleSortWrapper(list.id, "desc")
+                                  }
+                                  sx={{ mx: 0.5 }}
+                                >
+                                  <ArrowDownwardIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          </Box>
+
+                          {/* Text case transformation buttons */}
+                          <Box
+                            sx={{
+                              display: "flex",
+                              justifyContent: "center",
+                              mt: 1,
+                              borderTop: `1px solid ${getThemedListColor(
+                                list.id,
+                                "border"
+                              )}`,
+                              pt: 1,
+                            }}
+                          >
+                            <Tooltip title="UPPERCASE">
                               <IconButton
                                 size="small"
-                                onClick={() =>
-                                  handleSortWrapper(list.id, "desc")
-                                }
+                                onClick={() => {
+                                  convertToUppercase(list.id, setLists);
+                                  setImmediateInputs((prev) => ({
+                                    ...prev,
+                                    [list.id]:
+                                      lists
+                                        .find((l) => l.id === list.id)
+                                        ?.content.toUpperCase() || "",
+                                  }));
+                                }}
                                 sx={{ mx: 0.5 }}
                               >
-                                <ArrowDownwardIcon fontSize="small" />
+                                <FormatSizeIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
-                          </Box>
-                        </Box>
-
-                        {/* Text case transformation buttons */}
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "center",
-                            mt: 1,
-                            borderTop: `1px solid ${getThemedListColor(
-                              list.id,
-                              "border"
-                            )}`,
-                            pt: 1,
-                          }}
-                        >
-                          <Tooltip title="UPPERCASE">
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                convertToUppercase(list.id, setLists);
-                                setImmediateInputs((prev) => ({
-                                  ...prev,
-                                  [list.id]:
-                                    lists
-                                      .find((l) => l.id === list.id)
-                                      ?.content.toUpperCase() || "",
-                                }));
-                              }}
-                              sx={{ mx: 0.5 }}
-                            >
-                              <FormatSizeIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="lowercase">
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                convertToLowercase(list.id, setLists);
-                                setImmediateInputs((prev) => ({
-                                  ...prev,
-                                  [list.id]:
-                                    lists
-                                      .find((l) => l.id === list.id)
-                                      ?.content.toLowerCase() || "",
-                                }));
-                              }}
-                              sx={{ mx: 0.5 }}
-                            >
-                              <AbcIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Sentence case">
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                convertToSentenceCase(list.id, setLists);
-                                // For sentence case we need to compute the conversion directly here too
-                                const content =
-                                  lists.find((l) => l.id === list.id)
-                                    ?.content || "";
-                                const sentenceCaseContent = content
-                                  .split(/\n+/)
-                                  .map((line) => {
-                                    if (line.trim() === "") return line;
-                                    return (
-                                      line.charAt(0).toUpperCase() +
-                                      line.slice(1).toLowerCase()
-                                    );
-                                  })
-                                  .join("\n");
-                                setImmediateInputs((prev) => ({
-                                  ...prev,
-                                  [list.id]: sentenceCaseContent,
-                                }));
-                              }}
-                              sx={{ mx: 0.5 }}
-                            >
-                              <TextFormatIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="camelCase">
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                convertToCamelCase(list.id, setLists);
-                                // For camelCase, we need to compute it explicitly for immediateInputs too
-                                const content =
-                                  lists.find((l) => l.id === list.id)
-                                    ?.content || "";
-                                const camelCaseContent = content
-                                  .split(/\n+/)
-                                  .map((line) => {
-                                    return line.replace(
-                                      /\b\w+\b/g,
-                                      (word, index, fullLine) => {
-                                        const precedingText =
-                                          fullLine.substring(
-                                            0,
-                                            fullLine.indexOf(word)
-                                          );
-                                        const isFirstWord =
-                                          !precedingText.trim();
-                                        if (isFirstWord) {
-                                          return word.toLowerCase();
-                                        } else {
+                            <Tooltip title="lowercase">
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  convertToLowercase(list.id, setLists);
+                                  setImmediateInputs((prev) => ({
+                                    ...prev,
+                                    [list.id]:
+                                      lists
+                                        .find((l) => l.id === list.id)
+                                        ?.content.toLowerCase() || "",
+                                  }));
+                                }}
+                                sx={{ mx: 0.5 }}
+                              >
+                                <AbcIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Sentence case">
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  convertToSentenceCase(list.id, setLists);
+                                  // For sentence case we need to compute the conversion directly here too
+                                  const content =
+                                    lists.find((l) => l.id === list.id)
+                                      ?.content || "";
+                                  const sentenceCaseContent = content
+                                    .split(/\n+/)
+                                    .map((line) => {
+                                      if (line.trim() === "") return line;
+                                      return (
+                                        line.charAt(0).toUpperCase() +
+                                        line.slice(1).toLowerCase()
+                                      );
+                                    })
+                                    .join("\n");
+                                  setImmediateInputs((prev) => ({
+                                    ...prev,
+                                    [list.id]: sentenceCaseContent,
+                                  }));
+                                }}
+                                sx={{ mx: 0.5 }}
+                              >
+                                <TextFormatIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="camelCase">
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  convertToCamelCase(list.id, setLists);
+                                  // For camelCase, we need to compute it explicitly for immediateInputs too
+                                  const content =
+                                    lists.find((l) => l.id === list.id)
+                                      ?.content || "";
+                                  const camelCaseContent = content
+                                    .split(/\n+/)
+                                    .map((line) => {
+                                      return line.replace(
+                                        /\b\w+\b/g,
+                                        (word, index, fullLine) => {
+                                          const precedingText =
+                                            fullLine.substring(
+                                              0,
+                                              fullLine.indexOf(word)
+                                            );
+                                          const isFirstWord =
+                                            !precedingText.trim();
+                                          if (isFirstWord) {
+                                            return word.toLowerCase();
+                                          } else {
+                                            return (
+                                              word.charAt(0).toUpperCase() +
+                                              word.slice(1).toLowerCase()
+                                            );
+                                          }
+                                        }
+                                      );
+                                    })
+                                    .join("\n");
+                                  setImmediateInputs((prev) => ({
+                                    ...prev,
+                                    [list.id]: camelCaseContent,
+                                  }));
+                                }}
+                                sx={{ mx: 0.5 }}
+                              >
+                                <TextFieldsIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="PascalCase">
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  convertToPascalCase(list.id, setLists);
+                                  // For PascalCase, we need to compute it explicitly for immediateInputs too
+                                  const content =
+                                    lists.find((l) => l.id === list.id)
+                                      ?.content || "";
+                                  const pascalCaseContent = content
+                                    .split(/\n+/)
+                                    .map((line) => {
+                                      return line.replace(
+                                        /\b\w+\b/g,
+                                        (word) => {
                                           return (
                                             word.charAt(0).toUpperCase() +
                                             word.slice(1).toLowerCase()
                                           );
                                         }
-                                      }
-                                    );
-                                  })
-                                  .join("\n");
-                                setImmediateInputs((prev) => ({
-                                  ...prev,
-                                  [list.id]: camelCaseContent,
-                                }));
-                              }}
-                              sx={{ mx: 0.5 }}
-                            >
-                              <TextFieldsIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="PascalCase">
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                convertToPascalCase(list.id, setLists);
-                                // For PascalCase, we need to compute it explicitly for immediateInputs too
-                                const content =
-                                  lists.find((l) => l.id === list.id)
-                                    ?.content || "";
-                                const pascalCaseContent = content
-                                  .split(/\n+/)
-                                  .map((line) => {
-                                    return line.replace(/\b\w+\b/g, (word) => {
-                                      return (
-                                        word.charAt(0).toUpperCase() +
-                                        word.slice(1).toLowerCase()
                                       );
-                                    });
-                                  })
-                                  .join("\n");
-                                setImmediateInputs((prev) => ({
-                                  ...prev,
-                                  [list.id]: pascalCaseContent,
-                                }));
-                              }}
-                              sx={{ mx: 0.5 }}
-                            >
-                              <FormatColorTextIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                      </Paper>
-                    </Grid>
-                  ))}
+                                    })
+                                    .join("\n");
+                                  setImmediateInputs((prev) => ({
+                                    ...prev,
+                                    [list.id]: pascalCaseContent,
+                                  }));
+                                }}
+                                sx={{ mx: 0.5 }}
+                              >
+                                <FormatColorTextIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </Paper>
+                      </Grid>
+                    );
+                  })}
                 </Grid>
               </Paper>
             </Grid>
@@ -1742,6 +1952,14 @@ function AppContent() {
         onNameChange={handleListNameChange}
         onCategoryChange={handleListCategoryChange}
         onAddCategory={handleAddCategory}
+      />
+
+      {/* Add Filter Dialog */}
+      <FilterDialog
+        open={filterDialogOpen}
+        onClose={() => setFilterDialogOpen(false)}
+        list={currentFilteringList}
+        onApplyFilter={handleApplyFilter}
       />
     </>
   );
