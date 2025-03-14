@@ -54,7 +54,7 @@ const ResultsSection = ({
                 }
                 items={result.uniqueValues}
                 listId={`unique-${result.listId}`}
-                origListId={result.listId}
+                origListId={result.listId - 1}
                 resultsSorting={resultsSorting}
                 setResultsSorting={setResultsSorting}
                 compareMode={compareMode}
