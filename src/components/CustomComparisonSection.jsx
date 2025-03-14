@@ -91,17 +91,20 @@ const CustomComparisonSection = ({
                   // Filter out any selected IDs that no longer exist in the lists array
                   .filter((value) => lists.some((list) => list.id === value))
                   .map((value) => {
-                    const listIndex = lists.findIndex(
-                      (list) => list.id === value
-                    );
-                    return <Chip key={value} label={`List ${listIndex + 1}`} />;
+                    // Get the actual list object
+                    const list = lists.find((list) => list.id === value);
+                    // Use list name if available, or fallback to index based name
+                    const listIndex = lists.findIndex((l) => l.id === value);
+                    const displayName = list?.name || `List ${listIndex + 1}`;
+
+                    return <Chip key={value} label={displayName} />;
                   })}
               </Box>
             )}
           >
             {lists.map((list, index) => (
               <MenuItem key={list.id} value={list.id}>
-                List {index + 1}
+                {list.name || `List ${index + 1}`}
               </MenuItem>
             ))}
           </Select>

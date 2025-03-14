@@ -16,6 +16,8 @@ import CustomComparisonSection from "./CustomComparisonSection";
 import Footer from "./Footer";
 import ListSettingsDialog from "./ListSettingsDialog";
 import FilterDialog from "./FilterDialog";
+import ListRenameDialog from "./ListRenameDialog";
+import { useListNaming } from "../hooks/useListNaming";
 
 function AppContent() {
   // State declarations (keeping all the state here for now)
@@ -45,6 +47,18 @@ function AppContent() {
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [currentFilteringList, setCurrentFilteringList] = useState(null);
   const [filteredContents, setFilteredContents] = useState({});
+
+  // Add state and hook for list naming functionality
+  const {
+    renameDialogOpen,
+    currentRenamingList,
+    newListName,
+    setNewListName,
+    openRenameDialog,
+    closeRenameDialog,
+    renameList,
+    getDefaultListName,
+  } = useListNaming(lists, setLists);
 
   // Create debounced values for each list's content
   const debouncedInputs = useDebounce(immediateInputs, 300);
@@ -427,7 +441,7 @@ function AppContent() {
   const handleAddList = useCallback(
     (category = "Default") => {
       if (lists.length < 5) {
-        const defaultName = `List ${lists.length + 1}`;
+        const defaultName = getDefaultListName(lists);
         setLists([
           ...lists,
           { id: nextId, name: defaultName, content: "", category },
@@ -435,7 +449,7 @@ function AppContent() {
         setNextId(nextId + 1);
       }
     },
-    [lists, nextId]
+    [lists, nextId, getDefaultListName]
   );
 
   // Handle opening the filter dialog
@@ -540,6 +554,7 @@ function AppContent() {
           filteredContents={filteredContents}
           onOpenFilterDialog={handleOpenFilterDialog}
           onOpenSettings={openListSettings}
+          onOpenRenameDialog={openRenameDialog} // Add this prop
           onInputChange={handleImmediateInputChange}
           onCopyToClipboard={memoizedCopyToClipboard}
           getListContent={getListContent}
@@ -607,6 +622,16 @@ function AppContent() {
         onClose={() => setFilterDialogOpen(false)}
         list={currentFilteringList}
         onApplyFilter={handleApplyFilter}
+      />
+
+      {/* Add List Rename Dialog */}
+      <ListRenameDialog
+        open={renameDialogOpen}
+        onClose={closeRenameDialog}
+        list={currentRenamingList}
+        newName={newListName}
+        onNameChange={setNewListName}
+        onRename={renameList}
       />
     </>
   );

@@ -23,6 +23,7 @@ import AbcIcon from "@mui/icons-material/Abc";
 import TextFormatIcon from "@mui/icons-material/TextFormat";
 import TextFieldsIcon from "@mui/icons-material/TextFields";
 import FormatColorTextIcon from "@mui/icons-material/FormatColorText";
+import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
 import {
   getListItemCount,
   getDuplicatesCount,
@@ -41,6 +42,7 @@ const ListCard = ({
   onInputChange,
   onOpenSettings,
   onOpenFilter,
+  onRename,
   onRemove,
   onClear,
   onTrimDuplicates,
@@ -76,9 +78,23 @@ const ListCard = ({
         mb={1}
       >
         <Box display="flex" alignItems="center">
-          <Typography variant="h6" sx={{ mr: 1 }}>
-            {list.name}
+          <Typography
+            variant="h6"
+            sx={{ mr: 1, cursor: "pointer" }}
+            onClick={() => onRename(list)}
+          >
+            {list.name || `List ${list.id}`}
           </Typography>
+          <Tooltip title="Rename List">
+            <IconButton
+              size="small"
+              onClick={() => onRename(list)}
+              color="primary"
+              sx={{ mr: 1 }}
+            >
+              <DriveFileRenameOutlineIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
           <Box display="flex" gap={1}>
             <Chip
               label={`Total: ${filteredItemCount}${

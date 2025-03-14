@@ -29,6 +29,9 @@ const ResultsSection = ({
           );
           if (listIndex === -1) return null; // Skip if list was removed
 
+          // Get the actual list name from the lists array
+          const listName = lists[listIndex]?.name || `List ${listIndex + 1}`;
+
           return (
             <Grid
               item
@@ -40,7 +43,7 @@ const ResultsSection = ({
                 title={
                   <Box display="flex" alignItems="center">
                     <Typography variant="h6" component="span" sx={{ mr: 1 }}>
-                      Unique to List {listIndex + 1}
+                      Unique to {listName}
                     </Typography>
                     <Chip
                       label={`Total: ${result.uniqueValues.length}`}
@@ -51,7 +54,7 @@ const ResultsSection = ({
                 }
                 items={result.uniqueValues}
                 listId={`unique-${result.listId}`}
-                origListId={result.listId - 1}
+                origListId={result.listId}
                 resultsSorting={resultsSorting}
                 setResultsSorting={setResultsSorting}
                 compareMode={compareMode}

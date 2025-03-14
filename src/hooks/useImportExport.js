@@ -84,9 +84,12 @@ export function useImportExport(
   const exportData = useCallback(
     (results) => {
       try {
-        // Create text content with all list data
+        // Create text content with all list data using actual list names
         let exportData = lists
-          .map((list, index) => `--- List ${index + 1} ---\n${list.content}`)
+          .map(
+            (list, index) =>
+              `--- ${list.name || `List ${index + 1}`} ---\n${list.content}`
+          )
           .join("\n\n");
 
         // Add the results section if results are provided
@@ -98,14 +101,12 @@ export function useImportExport(
                 result.uniqueValues.length
               } items):\n${result.uniqueValues.join("\n")}\n\n`;
             } else {
-              const listIndex = lists.findIndex(
-                (list) => list.id === result.listId
-              );
-              if (listIndex !== -1) {
-                exportData += `Unique to List ${listIndex + 1} (${
-                  result.uniqueValues.length
-                } items):\n${result.uniqueValues.join("\n")}\n\n`;
-              }
+              const list = lists.find((list) => list.id === result.listId);
+              const listName = list?.name || `Unknown List`;
+
+              exportData += `Unique to ${listName} (${
+                result.uniqueValues.length
+              } items):\n${result.uniqueValues.join("\n")}\n\n`;
             }
           });
         }

@@ -11,6 +11,7 @@ const ListsSection = ({
   caseSensitive,
   onOpenFilterDialog,
   onOpenSettings,
+  onOpenRenameDialog, // Add this prop
   onInputChange,
   onCopyToClipboard,
   getListContent,
@@ -185,6 +186,7 @@ const ListsSection = ({
                       onInputChange={onInputChange}
                       onOpenSettings={onOpenSettings}
                       onOpenFilter={onOpenFilterDialog}
+                      onRename={onOpenRenameDialog} // Add this prop
                       onRemove={(id) =>
                         removeList(
                           id,
