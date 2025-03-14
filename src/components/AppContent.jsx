@@ -32,6 +32,7 @@ import {
 } from "../utils/listUtils"; // Add compareAllLists import here
 import { saveConfiguration, loadConfiguration } from "../utils/dbUtils";
 import { applyFilter } from "../utils/filterUtils"; // Add this import
+import VisualizationSection from "./visualizations/VisualizationSection";
 
 function AppContent() {
   // State declarations (keeping all the state here for now)
@@ -776,16 +777,18 @@ function AppContent() {
           onDeleteCategory={handleDeleteCategory}
         />
 
-        <ResultsSection
-          results={results}
-          lists={lists}
-          resultsSorting={resultsSorting}
-          setResultsSorting={setResultsSorting}
-          compareMode={compareMode}
-          caseSensitive={caseSensitive}
-          onCopyToClipboard={memoizedCopyToClipboard}
-          getListContent={getListContent}
-        />
+        {results.length > 0 && (
+          <ResultsSection
+            results={results}
+            lists={lists}
+            resultsSorting={resultsSorting}
+            setResultsSorting={setResultsSorting}
+            compareMode={compareMode}
+            caseSensitive={caseSensitive}
+            onCopyToClipboard={memoizedCopyToClipboard}
+            getListContent={getListContent}
+          />
+        )}
 
         <CustomComparisonSection
           lists={lists}
@@ -801,6 +804,11 @@ function AppContent() {
           caseSensitive={caseSensitive}
           onCopyToClipboard={memoizedCopyToClipboard}
         />
+
+        {/* Add new Visualization Section */}
+        {results.length > 0 && (
+          <VisualizationSection lists={lists} results={results} />
+        )}
 
         <Footer />
       </Container>
