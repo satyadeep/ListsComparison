@@ -1,73 +1,58 @@
 import React, { useRef } from "react";
-import { Button, Stack, Tooltip } from "@mui/material";
-import UploadIcon from "@mui/icons-material/Upload";
-import DownloadIcon from "@mui/icons-material/Download";
+import { Button, Box, Tooltip } from "@mui/material";
+import FileUploadIcon from "@mui/icons-material/FileUpload";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
 
 const ImportExportButtons = ({ onImport, onExport }) => {
   const fileInputRef = useRef(null);
 
-  const handleImportClick = () => {
-    fileInputRef.current.click();
-  };
-
-  const handleFileChange = (event) => {
+  const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      try {
-        const content = e.target.result;
-        onImport(content);
-      } catch (error) {
-        console.error("Error importing file:", error);
-        alert("Failed to import file. Please ensure it is a valid text file.");
-      }
+      const content = e.target.result;
+      onImport(content);
     };
     reader.readAsText(file);
 
-    // Reset file input so the same file can be selected again if needed
+    // Reset the input so the same file can be selected again
     event.target.value = "";
   };
 
-  const handleExport = () => {
-    onExport();
-  };
-
   return (
-    <Stack direction="row" spacing={1}>
-      <Tooltip title="Import from file">
-        <Button
-          variant="outlined"
-          startIcon={<UploadIcon />}
-          onClick={handleImportClick}
-          size="small"
-          sx={{ bgcolor: "rgba(255, 255, 255, 0.9)" }}
-        >
-          Import
-        </Button>
-      </Tooltip>
-
+    <Box sx={{ display: "flex", gap: 1 }}>
       <input
         type="file"
         ref={fileInputRef}
         style={{ display: "none" }}
-        onChange={handleFileChange}
-        accept=".txt,.csv,.text"
+        onChange={handleFileUpload}
+        accept=".txt,.csv,.json"
       />
-
-      <Tooltip title="Export to file">
+      <Tooltip title="Import data from file">
         <Button
           variant="outlined"
-          startIcon={<DownloadIcon />}
-          onClick={handleExport}
+          color="inherit"
+          startIcon={<FileUploadIcon />}
+          onClick={() => fileInputRef.current.click()}
           size="small"
-          sx={{ bgcolor: "rgba(255, 255, 255, 0.9)" }}
+        >
+          Import
+        </Button>
+      </Tooltip>
+      <Tooltip title="Export data to file">
+        <Button
+          variant="outlined"
+          color="inherit"
+          startIcon={<FileDownloadIcon />}
+          onClick={onExport}
+          size="small"
         >
           Export
         </Button>
       </Tooltip>
-    </Stack>
+    </Box>
   );
 };
 

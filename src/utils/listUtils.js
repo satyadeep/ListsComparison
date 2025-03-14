@@ -655,3 +655,25 @@ export const compareSelectedLists = (
 
   return [];
 };
+
+/**
+ * Parse content from an exported file format
+ * @param {string} content - The content to parse
+ * @returns {Array} An array of list contents
+ */
+export const parseExportedFormat = (content) => {
+  const listContents = [];
+  const listPattern =
+    /---\s*List\s+(\d+)\s*---\n([\s\S]*?)(?=---\s*(?:List|Results)|$)/g;
+  let match;
+
+  while ((match = listPattern.exec(content)) !== null) {
+    const listNumber = parseInt(match[1], 10);
+    const listContent = match[2].trim();
+
+    // Store content by list number (1-based index for display, 0-based for array)
+    listContents[listNumber - 1] = listContent;
+  }
+
+  return listContents;
+};
