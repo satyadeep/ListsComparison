@@ -59,6 +59,16 @@ import {
   getSortedItems,
   handleCaseSensitivityChange,
   getListColor, // Add this import
+  convertToUppercase,
+  convertToLowercase,
+  convertToCamelCase,
+  convertToPascalCase,
+  convertToSentenceCase,
+  transformCommonToUppercase,
+  transformCommonToLowercase,
+  transformCommonToSentenceCase,
+  transformCommonToCamelCase,
+  transformCommonToPascalCase,
 } from "./utils/listUtils";
 
 function App() {
@@ -190,11 +200,6 @@ function App() {
     }
   }, [selectedLists, lists, comparisonType, compareMode, caseSensitive]);
 
-  // Array of colors to use for the list counts
-  // const listColors = ["primary", "secondary", "success", "warning", "error"];
-  // const listColors = ["#585123", "#ef476f", "#006494", "#8338ec", "#2f3e46"];
-  // const listColorsBg = ["#F6F0F0", "#F8F3D9", "#BAD8B6", "#C6E7FF", "#F8EDE3"];
-
   // Handle trimming spaces in a list
   const handleTrimSpaces = (listId) => {
     setLists((prevLists) =>
@@ -218,161 +223,6 @@ function App() {
       prevLists.map((list) =>
         list.id === listId ? { ...list, content: "" } : list
       )
-    );
-  };
-
-  // Text case transformation functions
-  const convertToUppercase = (listId) => {
-    setLists((prevLists) =>
-      prevLists.map((list) =>
-        list.id === listId
-          ? {
-              ...list,
-              content: list.content.toUpperCase(),
-            }
-          : list
-      )
-    );
-  };
-
-  const convertToLowercase = (listId) => {
-    setLists((prevLists) =>
-      prevLists.map((list) =>
-        list.id === listId
-          ? {
-              ...list,
-              content: list.content.toLowerCase(),
-            }
-          : list
-      )
-    );
-  };
-
-  const convertToCamelCase = (listId) => {
-    setLists((prevLists) =>
-      prevLists.map((list) =>
-        list.id === listId
-          ? {
-              ...list,
-              content: list.content
-                .split(/\n+/)
-                .map((line) => {
-                  // Preserve spaces in the line, apply camelCase to individual words
-                  return line.replace(/\b\w+\b/g, (word, index, fullLine) => {
-                    // Check if this is the first word in the line
-                    const precedingText = fullLine.substring(
-                      0,
-                      fullLine.indexOf(word)
-                    );
-                    const isFirstWord = !precedingText.trim();
-
-                    if (isFirstWord) {
-                      return word.toLowerCase();
-                    } else {
-                      return (
-                        word.charAt(0).toUpperCase() +
-                        word.slice(1).toLowerCase()
-                      );
-                    }
-                  });
-                })
-                .join("\n"),
-            }
-          : list
-      )
-    );
-  };
-
-  const convertToPascalCase = (listId) => {
-    setLists((prevLists) =>
-      prevLists.map((list) =>
-        list.id === listId
-          ? {
-              ...list,
-              content: list.content
-                .split(/\n+/)
-                .map((line) => {
-                  // Preserve spaces in the line, apply PascalCase to individual words
-                  return line.replace(/\b\w+\b/g, (word) => {
-                    return (
-                      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-                    );
-                  });
-                })
-                .join("\n"),
-            }
-          : list
-      )
-    );
-  };
-
-  // New function for sentence case
-  const convertToSentenceCase = (listId) => {
-    setLists((prevLists) =>
-      prevLists.map((list) =>
-        list.id === listId
-          ? {
-              ...list,
-              content: list.content
-                .split(/\n+/)
-                .map((line) => {
-                  if (line.trim() === "") return line;
-                  return (
-                    line.charAt(0).toUpperCase() + line.slice(1).toLowerCase()
-                  );
-                })
-                .join("\n"),
-            }
-          : list
-      )
-    );
-  };
-
-  // Add these new functions for transforming the common selected results
-  const transformCommonToUppercase = () => {
-    setCommonSelected(commonSelected.map((item) => String(item).toUpperCase()));
-  };
-
-  const transformCommonToLowercase = () => {
-    setCommonSelected(commonSelected.map((item) => String(item).toLowerCase()));
-  };
-
-  const transformCommonToSentenceCase = () => {
-    setCommonSelected(
-      commonSelected.map((item) => {
-        const str = String(item);
-        if (str.trim() === "") return str;
-        return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-      })
-    );
-  };
-
-  const transformCommonToCamelCase = () => {
-    setCommonSelected(
-      commonSelected.map((item) => {
-        const str = String(item);
-        return str.replace(/\b\w+\b/g, (word, index, fullLine) => {
-          const precedingText = fullLine.substring(0, fullLine.indexOf(word));
-          const isFirstWord = !precedingText.trim();
-
-          if (isFirstWord) {
-            return word.toLowerCase();
-          } else {
-            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-          }
-        });
-      })
-    );
-  };
-
-  const transformCommonToPascalCase = () => {
-    setCommonSelected(
-      commonSelected.map((item) => {
-        const str = String(item);
-        return str.replace(/\b\w+\b/g, (word) => {
-          return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-        });
-      })
     );
   };
 
@@ -639,7 +489,7 @@ function App() {
                         size="small"
                         sx={{
                           fontWeight: "bold",
-                          bgcolor: "#1976d2",
+                          bgcolor: getListColor(list.id, lists, "border"),
                           color: "white",
                         }}
                       />
@@ -818,14 +668,18 @@ function App() {
                     display: "flex",
                     justifyContent: "center",
                     mt: 1,
-                    borderTop: "1px solid #eee",
+                    borderTop: `1px solid ${getListColor(
+                      list.id,
+                      lists,
+                      "border"
+                    )}`,
                     pt: 1,
                   }}
                 >
                   <Tooltip title="UPPERCASE">
                     <IconButton
                       size="small"
-                      onClick={() => convertToUppercase(list.id)}
+                      onClick={() => convertToUppercase(list.id, setLists)}
                       sx={{ mx: 0.5 }}
                     >
                       <FormatSizeIcon fontSize="small" />
@@ -834,7 +688,7 @@ function App() {
                   <Tooltip title="lowercase">
                     <IconButton
                       size="small"
-                      onClick={() => convertToLowercase(list.id)}
+                      onClick={() => convertToLowercase(list.id, setLists)}
                       sx={{ mx: 0.5 }}
                     >
                       <AbcIcon fontSize="small" />
@@ -843,7 +697,7 @@ function App() {
                   <Tooltip title="Sentence case">
                     <IconButton
                       size="small"
-                      onClick={() => convertToSentenceCase(list.id)}
+                      onClick={() => convertToSentenceCase(list.id, setLists)}
                       sx={{ mx: 0.5 }}
                     >
                       <TextFormatIcon fontSize="small" />
@@ -852,7 +706,7 @@ function App() {
                   <Tooltip title="camelCase">
                     <IconButton
                       size="small"
-                      onClick={() => convertToCamelCase(list.id)}
+                      onClick={() => convertToCamelCase(list.id, setLists)}
                       sx={{ mx: 0.5 }}
                     >
                       <TextFieldsIcon fontSize="small" />
@@ -861,7 +715,7 @@ function App() {
                   <Tooltip title="PascalCase">
                     <IconButton
                       size="small"
-                      onClick={() => convertToPascalCase(list.id)}
+                      onClick={() => convertToPascalCase(list.id, setLists)}
                       sx={{ mx: 0.5 }}
                     >
                       <FormatColorTextIcon fontSize="small" />
@@ -962,7 +816,10 @@ function App() {
 
           {/* Custom comparison section with sequential numbering */}
           <Grid item xs={12} sx={{ mt: 4 }}>
-            <Paper elevation={3} sx={{ p: 2 }}>
+            <Paper
+              elevation={3}
+              sx={{ p: 2, background: getListColor(0, [], "common") }}
+            >
               <Typography variant="h6" gutterBottom>
                 Custom List Comparison
               </Typography>
@@ -986,7 +843,15 @@ function App() {
                     />
                   }
                   renderValue={(selected) => (
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 0.5,
+                        borderRadius: 4,
+                        padding: 1,
+                      }}
+                    >
                       {selected
                         // Filter out any selected IDs that no longer exist in the lists array
                         .filter((value) =>
@@ -1066,20 +931,20 @@ function App() {
                 </ToggleButtonGroup>
               </Box>
 
-              <Box sx={{ mt: 2 }}>
+              <Box sx={{ mt: 2, backgroundColor: "white" }}>
                 <Box
                   display="flex"
                   justifyContent="space-between"
                   alignItems="center"
                 >
                   <Box display="flex" alignItems="center">
-                    <Typography variant="subtitle1" sx={{ mr: 1 }}>
+                    <Typography variant="subtitle1" sx={{ mr: 1, padding: 1 }}>
                       {comparisonType === "intersection"
                         ? "Common values among selected lists:"
                         : "All values from selected lists (union):"}
                     </Typography>
                     <Chip
-                      label={commonSelected.length}
+                      label={`Total: ${commonSelected.length}`}
                       size="small"
                       color="info"
                       sx={{ fontWeight: "bold" }}
@@ -1185,7 +1050,12 @@ function App() {
                     <Tooltip title="UPPERCASE">
                       <IconButton
                         size="small"
-                        onClick={transformCommonToUppercase}
+                        onClick={() =>
+                          transformCommonToUppercase(
+                            commonSelected,
+                            setCommonSelected
+                          )
+                        }
                         sx={{ mx: 0.5 }}
                       >
                         <FormatSizeIcon fontSize="small" />
@@ -1194,7 +1064,12 @@ function App() {
                     <Tooltip title="lowercase">
                       <IconButton
                         size="small"
-                        onClick={transformCommonToLowercase}
+                        onClick={() =>
+                          transformCommonToLowercase(
+                            commonSelected,
+                            setCommonSelected
+                          )
+                        }
                         sx={{ mx: 0.5 }}
                       >
                         <AbcIcon fontSize="small" />
@@ -1203,7 +1078,12 @@ function App() {
                     <Tooltip title="Sentence case">
                       <IconButton
                         size="small"
-                        onClick={transformCommonToSentenceCase}
+                        onClick={() =>
+                          transformCommonToSentenceCase(
+                            commonSelected,
+                            setCommonSelected
+                          )
+                        }
                         sx={{ mx: 0.5 }}
                       >
                         <TextFormatIcon fontSize="small" />
@@ -1212,7 +1092,12 @@ function App() {
                     <Tooltip title="camelCase">
                       <IconButton
                         size="small"
-                        onClick={transformCommonToCamelCase}
+                        onClick={() =>
+                          transformCommonToCamelCase(
+                            commonSelected,
+                            setCommonSelected
+                          )
+                        }
                         sx={{ mx: 0.5 }}
                       >
                         <TextFieldsIcon fontSize="small" />
@@ -1221,7 +1106,12 @@ function App() {
                     <Tooltip title="PascalCase">
                       <IconButton
                         size="small"
-                        onClick={transformCommonToPascalCase}
+                        onClick={() =>
+                          transformCommonToPascalCase(
+                            commonSelected,
+                            setCommonSelected
+                          )
+                        }
                         sx={{ mx: 0.5 }}
                       >
                         <FormatColorTextIcon fontSize="small" />

@@ -495,7 +495,7 @@ export const listColorsBg = [
   "#f0f8ff", // AliceBlue
   "#f5f5dc", // Beige
   "#e6e6fa", // Lavender
-  "#f0fff0", // HoneyDew
+  "#FBF9F1", // HoneyDew
   "#fff0f5", // LavenderBlush
 ];
 
@@ -504,7 +504,7 @@ export const listBorderColorsBg = [
   "#295F98", // AliceBlue
   "#A28B55", // Beige
   "#624E88", // Lavender
-  "#5F6F65", // HoneyDew
+  "#867070", // HoneyDew
   "#C96868", // LavenderBlush
 ];
 
@@ -533,5 +533,9 @@ export const getListColor = (
   }
 
   // Default color if list not found
-  return colorPaletteType === "border" ? "#cccccc" : "#ffffff";
+  return colorPaletteType === "border"
+    ? "#cccccc"
+    : colorPaletteType === "background"
+    ? "#ffffff"
+    : "#D3F1DF";
 };
