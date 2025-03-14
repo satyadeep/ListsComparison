@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Paper,
   Typography,
@@ -24,6 +24,7 @@ import TextFormatIcon from "@mui/icons-material/TextFormat";
 import TextFieldsIcon from "@mui/icons-material/TextFields";
 import FormatColorTextIcon from "@mui/icons-material/FormatColorText";
 import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
+import TableViewIcon from "@mui/icons-material/TableView"; // New icon for Excel/CSV import
 import {
   getListItemCount,
   getDuplicatesCount,
@@ -33,6 +34,7 @@ import {
   convertToCamelCase,
   convertToPascalCase,
 } from "../utils/listUtils";
+import ExcelCsvImportDialog from "./ExcelCsvImportDialog"; // Import the new component
 
 const ListCard = ({
   list,
@@ -53,6 +55,7 @@ const ListCard = ({
   canRemove,
   setLists,
 }) => {
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const hasActiveFilter = !!list.activeFilter;
   const originalItemCount = getListItemCount(
     list.content,
@@ -62,6 +65,18 @@ const ListCard = ({
   const filteredItemCount = hasActiveFilter
     ? getListItemCount(getListContent(list.id), compareMode, caseSensitive)
     : originalItemCount;
+
+  const handleOpenImportDialog = () => {
+    setImportDialogOpen(true);
+  };
+
+  const handleCloseImportDialog = () => {
+    setImportDialogOpen(false);
+  };
+
+  const handleColumnSelected = (columnData) => {
+    onInputChange(list.id, columnData);
+  };
 
   return (
     <Paper
@@ -241,6 +256,15 @@ const ListCard = ({
               <DeleteIcon fontSize="small" />
             </IconButton>
           </Tooltip>
+          <Tooltip title="Import from Excel/CSV">
+            <IconButton
+              size="small"
+              onClick={handleOpenImportDialog}
+              sx={{ ml: 1 }}
+            >
+              <TableViewIcon fontSize="small" color="primary" />
+            </IconButton>
+          </Tooltip>
         </Box>
         <Box>
           <Tooltip title="Copy to clipboard">
@@ -386,6 +410,13 @@ const ListCard = ({
           </IconButton>
         </Tooltip>
       </Box>
+
+      {/* Import Dialog */}
+      <ExcelCsvImportDialog
+        open={importDialogOpen}
+        onClose={handleCloseImportDialog}
+        onColumnSelected={handleColumnSelected}
+      />
     </Paper>
   );
 };
