@@ -96,13 +96,34 @@ export const handleComparisonTypeChange = (
   }
 };
 
-// Add function to clear all text areas and selections
-export const clearAll = (lists, setLists, setSelectedLists) => {
+// Improved function to clear all text areas and selections
+export const clearAll = (
+  lists,
+  setLists,
+  setSelectedLists,
+  setImmediateInputs
+) => {
+  // Create empty inputs object
+  const emptyInputs = {};
+  lists.forEach((list) => {
+    emptyInputs[list.id] = "";
+  });
+
+  // Update immediateInputs first if provided (to update UI immediately)
+  if (setImmediateInputs) {
+    setImmediateInputs(emptyInputs);
+  }
+
   // Clear all text areas but keep the list structure
   const clearedLists = lists.map((list) => ({ ...list, content: "" }));
   setLists(clearedLists);
+
   // Clear the multiselect dropdown
-  setSelectedLists([]);
+  if (setSelectedLists) {
+    setSelectedLists([]);
+  }
+
+  return clearedLists;
 };
 
 // Get count of items in a list
@@ -657,10 +678,88 @@ export const compareSelectedLists = (
 };
 
 /**
- * Parse content from an exported file format
+ * Enhanced parse function for imported files that handles categories
  * @param {string} content - The content to parse
- * @returns {Array} An array of list contents
+ * @returns {Object} Object containing lists and categories
  */
+export const parseExportedFormatWithCategories = (content) => {
+  const lists = [];
+  const categories = new Set(["Default"]);
+  let nextId = 1;
+
+  // Try to extract JSON metadata if available
+  if (content.includes("LISTS_COMPARISON_METADATA:")) {
+    const metadataMatch = content.match(
+      /LISTS_COMPARISON_METADATA:(.*?)END_METADATA/s
+    );
+    if (metadataMatch && metadataMatch[1]) {
+      try {
+        const metadata = JSON.parse(metadataMatch[1].trim());
+        if (metadata.lists && Array.isArray(metadata.lists)) {
+          // Use metadata directly - this is the most reliable method
+          return {
+            lists: metadata.lists,
+            categories: metadata.categories || ["Default"],
+          };
+        }
+      } catch (e) {
+        console.error("Failed to parse metadata JSON:", e);
+      }
+    }
+  }
+
+  // Legacy format parsing with category support
+  const sections = content.split(/---\s*(?=(?:[^-]|-[^-]))/);
+
+  for (const section of sections) {
+    if (!section.trim()) continue;
+
+    // Try to extract list name/number and content
+    const match = section.match(/([^-\n]*)\s*---\s*\n([\s\S]*?)(?=$)/);
+    if (match) {
+      const [, header, listContent] = match;
+      const trimmedHeader = header.trim();
+
+      // Skip if it's the Results section
+      if (trimmedHeader.toLowerCase() === "results") continue;
+
+      let listName = trimmedHeader;
+      let category = "Default";
+
+      // Check if the header contains category information
+      if (trimmedHeader.includes("[") && trimmedHeader.includes("]")) {
+        const categoryMatch = trimmedHeader.match(/\[([^\]]+)\]/);
+        if (categoryMatch) {
+          category = categoryMatch[1].trim();
+          listName = trimmedHeader.replace(/\[([^\]]+)\]/, "").trim();
+          categories.add(category);
+        }
+      }
+
+      // Extract list number if the format is "List X"
+      let listNumber = null;
+      const numberMatch = listName.match(/List\s+(\d+)/i);
+      if (numberMatch) {
+        listNumber = parseInt(numberMatch[1], 10);
+      }
+
+      // Add the list
+      lists.push({
+        id: nextId++,
+        name: listName,
+        content: listContent.trim(),
+        category,
+      });
+    }
+  }
+
+  return {
+    lists,
+    categories: Array.from(categories),
+  };
+};
+
+// Keep the original parseExportedFormat for backward compatibility
 export const parseExportedFormat = (content) => {
   const listContents = [];
   const listPattern =
@@ -676,4 +775,39 @@ export const parseExportedFormat = (content) => {
   }
 
   return listContents;
+};
+
+/**
+ * Delete a category and move its lists to Default
+ * @param {string} categoryToDelete - The category to delete
+ * @param {Array} lists - Current lists array
+ * @param {Function} setLists - Function to update lists
+ * @param {Array} categories - Current categories array
+ * @param {Function} setCategories - Function to update categories
+ */
+export const deleteCategory = (
+  categoryToDelete,
+  lists,
+  setLists,
+  categories,
+  setCategories
+) => {
+  // Cannot delete the Default category
+  if (categoryToDelete === "Default") {
+    return;
+  }
+
+  // Update lists to move them to Default category
+  const updatedLists = lists.map((list) =>
+    list.category === categoryToDelete ? { ...list, category: "Default" } : list
+  );
+  setLists(updatedLists);
+
+  // Remove the category from the categories list
+  const updatedCategories = categories.filter(
+    (category) => category !== categoryToDelete
+  );
+  setCategories(updatedCategories);
+
+  return { updatedLists, updatedCategories };
 };

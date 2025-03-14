@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { parseExportedFormat } from "../utils/listUtils";
+import { parseExportedFormatWithCategories } from "../utils/listUtils";
 
 /**
  * Custom hook for handling import and export functionality
@@ -8,65 +8,72 @@ export function useImportExport(
   lists,
   setLists,
   setImmediateInputs,
-  setNotification
+  setNotification,
+  categories,
+  setCategories
 ) {
   // Import data from file content
   const importData = useCallback(
     (content) => {
       try {
-        // Check if this is a file in our export format (contains list headers)
-        if (
-          content.includes("--- List 1 ---") ||
-          content.includes("--- List")
-        ) {
-          // Parse the exported format
-          const listContents = parseExportedFormat(content);
+        console.log("Starting import process...");
 
-          // Update existing lists with parsed content
-          const updatedLists = [...lists];
-          listContents.forEach((content, index) => {
-            if (index < updatedLists.length && content) {
-              updatedLists[index] = {
-                ...updatedLists[index],
-                content: content,
-              };
-            }
-          });
+        // Try using the enhanced parser that handles categories
+        const { lists: parsedLists, categories: parsedCategories } =
+          parseExportedFormatWithCategories(content);
 
-          setLists(updatedLists);
+        if (parsedLists && parsedLists.length > 0) {
+          console.log("Successfully parsed imported file:", parsedLists);
+          console.log("Extracted categories:", parsedCategories);
+
+          // Fix IDs to ensure they're unique and numeric
+          const fixedLists = parsedLists.map((list, index) => ({
+            ...list,
+            id: typeof list.id === "number" ? list.id : index + 1,
+            category: list.category || "Default",
+          }));
+
+          // Update lists state
+          setLists(fixedLists);
+
+          // Update categories state
+          if (parsedCategories && parsedCategories.length > 0) {
+            setCategories(parsedCategories);
+          }
 
           // Update immediateInputs
           const newInputs = {};
-          updatedLists.forEach((list) => {
-            newInputs[list.id] = list.content;
+          fixedLists.forEach((list) => {
+            newInputs[list.id] = list.content || "";
           });
           setImmediateInputs(newInputs);
 
           setNotification({
             open: true,
-            message: "File imported and parsed successfully",
+            message: `File imported successfully with ${fixedLists.length} lists`,
             severity: "success",
           });
-        } else {
-          // Basic import - assumes the file contains list items separated by new lines
-          // This goes to the first list by default
-          if (lists.length > 0) {
-            const newLists = [...lists];
-            newLists[0] = { ...newLists[0], content: content.trim() };
-            setLists(newLists);
+          return;
+        }
 
-            // Update immediateInputs
-            setImmediateInputs((prev) => ({
-              ...prev,
-              [newLists[0].id]: content.trim(),
-            }));
+        // If parsing fails or no lists found, fall back to simple text import
+        console.log("Falling back to simple text import");
+        if (lists.length > 0) {
+          const newLists = [...lists];
+          newLists[0] = { ...newLists[0], content: content.trim() };
+          setLists(newLists);
 
-            setNotification({
-              open: true,
-              message: "Data imported successfully",
-              severity: "success",
-            });
-          }
+          // Update immediateInputs
+          setImmediateInputs((prev) => ({
+            ...prev,
+            [newLists[0].id]: content.trim(),
+          }));
+
+          setNotification({
+            open: true,
+            message: "Data imported as plain text",
+            severity: "success",
+          });
         }
       } catch (error) {
         console.error("Import error:", error);
@@ -77,32 +84,56 @@ export function useImportExport(
         });
       }
     },
-    [lists, setLists, setImmediateInputs, setNotification]
+    [lists, setLists, setImmediateInputs, setNotification, setCategories]
   );
 
   // Export data to a file
   const exportData = useCallback(
     (results) => {
       try {
-        // Create text content with all list data using actual list names
-        let exportData = lists
-          .map(
-            (list, index) =>
-              `--- ${list.name || `List ${index + 1}`} ---\n${list.content}`
-          )
-          .join("\n\n");
+        console.log("Starting export process...");
+        console.log("Lists to export:", lists);
+        console.log("Categories:", categories);
+
+        // Create metadata section with full list objects
+        let metadata = {
+          lists: lists.map((list) => ({
+            id: list.id,
+            name: list.name || `List ${list.id}`,
+            content: list.content || "",
+            category: list.category || "Default",
+          })),
+          categories: categories || ["Default"],
+          version: "1.2.0",
+        };
+
+        let exportData = `LISTS_COMPARISON_METADATA:${JSON.stringify(
+          metadata,
+          null,
+          2
+        )}END_METADATA\n\n`;
+
+        // Add human-readable list sections
+        lists.forEach((list) => {
+          const category = list.category || "Default";
+          const categoryTag = category !== "Default" ? ` [${category}]` : "";
+          exportData += `--- ${
+            list.name || `List ${list.id}`
+          }${categoryTag} ---\n${list.content || ""}\n\n`;
+        });
 
         // Add the results section if results are provided
         if (results && results.length > 0) {
-          exportData += "\n\n--- Results ---\n";
+          exportData += "--- Results ---\n";
           results.forEach((result) => {
             if (result.listId === "common") {
               exportData += `Common to All Lists (${
                 result.uniqueValues.length
               } items):\n${result.uniqueValues.join("\n")}\n\n`;
             } else {
+              // Find the list name for this result
               const list = lists.find((list) => list.id === result.listId);
-              const listName = list?.name || `Unknown List`;
+              const listName = list?.name || `List ${result.listId}`;
 
               exportData += `Unique to ${listName} (${
                 result.uniqueValues.length
@@ -111,7 +142,7 @@ export function useImportExport(
           });
         }
 
-        // Create a blob and trigger download
+        // Create a blob and download it
         const blob = new Blob([exportData], { type: "text/plain" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -136,7 +167,7 @@ export function useImportExport(
         });
       }
     },
-    [lists, setNotification]
+    [lists, categories, setNotification]
   );
 
   return {

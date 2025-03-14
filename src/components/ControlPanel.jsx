@@ -28,6 +28,15 @@ const ControlPanel = ({
   onClearAll,
   onAddList,
 }) => {
+  // Ensure onClearAll exists and is a function before using it
+  const handleClearAll = () => {
+    if (typeof onClearAll === "function") {
+      onClearAll();
+    } else {
+      console.error("Clear All handler is not properly defined");
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -107,7 +116,8 @@ const ControlPanel = ({
           variant="outlined"
           color="secondary"
           startIcon={<DeleteSweepIcon />}
-          onClick={onClearAll}
+          onClick={handleClearAll}
+          data-testid="clear-all-button"
         >
           Clear All
         </Button>

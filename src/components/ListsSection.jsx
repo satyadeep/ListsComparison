@@ -2,6 +2,7 @@ import React, { useCallback } from "react";
 import { Grid, Paper, Typography, Divider, Box, Chip } from "@mui/material";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import ListCard from "./ListCard";
+import CategoryHeader from "./CategoryHeader";
 import { removeList, parseInput, removeDuplicates } from "../utils/listUtils";
 
 const ListsSection = ({
@@ -18,6 +19,7 @@ const ListsSection = ({
   setLists,
   selectedLists,
   setSelectedLists,
+  onDeleteCategory,
 }) => {
   const muiTheme = useMuiTheme();
 
@@ -129,89 +131,90 @@ const ListsSection = ({
     [groupedLists, setLists, onInputChange]
   );
 
+  console.log("Rendering ListsSection with groupedLists:", groupedLists);
+
   return (
     <Grid container spacing={4}>
-      {Object.entries(groupedLists).map(([category, categoryLists]) => (
-        <Grid item xs={12} key={category}>
-          <Paper
-            elevation={2}
-            sx={{
-              p: 2,
-              backgroundColor:
-                muiTheme.palette.mode === "dark"
-                  ? "rgba(66, 66, 66, 0.5)"
-                  : category === "Default"
-                  ? "white"
-                  : "#f7f7ff",
-              borderLeft: `4px solid ${
-                category === "Default"
-                  ? muiTheme.palette.primary.main
-                  : "#5c6bc0"
-              }`,
-              mb: 2,
-            }}
-          >
-            <Typography
-              variant="h5"
-              gutterBottom
+      {Object.entries(groupedLists).map(([category, categoryLists]) => {
+        console.log(
+          `Rendering category ${category} with lists:`,
+          categoryLists
+        );
+
+        return (
+          <Grid item xs={12} key={category}>
+            <Paper
+              elevation={2}
               sx={{
-                fontWeight: 500,
-                color: category === "Default" ? "#1976d2" : "#303f9f",
-                display: "flex",
-                alignItems: "center",
+                p: 2,
+                backgroundColor:
+                  muiTheme.palette.mode === "dark"
+                    ? "rgba(66, 66, 66, 0.5)"
+                    : category === "Default"
+                    ? "white"
+                    : "#f7f7ff",
+                borderLeft: `4px solid ${
+                  category === "Default"
+                    ? muiTheme.palette.primary.main
+                    : "#5c6bc0"
+                }`,
+                mb: 2,
               }}
             >
-              {category}
-              <Chip
-                size="small"
-                label={`${categoryLists.length} ${
-                  categoryLists.length === 1 ? "list" : "lists"
-                }`}
-                sx={{ ml: 2, fontSize: "0.8rem" }}
+              <CategoryHeader
+                category={category}
+                listsCount={categoryLists.length}
+                onDeleteCategory={onDeleteCategory}
+                canDelete={category !== "Default"}
               />
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
 
-            <Grid container spacing={3}>
-              {categoryLists.map((list) => {
-                const allLists = Object.values(groupedLists).flat();
+              <Divider sx={{ mb: 2, mt: 1 }} />
 
-                return (
-                  <Grid item xs={12} md={6} key={list.id}>
-                    <ListCard
-                      list={list}
-                      compareMode={compareMode}
-                      caseSensitive={caseSensitive}
-                      immediateInput={immediateInputs[list.id]}
-                      onInputChange={onInputChange}
-                      onOpenSettings={onOpenSettings}
-                      onOpenFilter={onOpenFilterDialog}
-                      onRename={onOpenRenameDialog} // Add this prop
-                      onRemove={(id) =>
-                        removeList(
-                          id,
-                          allLists,
-                          setLists,
-                          selectedLists,
-                          setSelectedLists
-                        )
-                      }
-                      onClear={handleClearList}
-                      onTrimDuplicates={trimDuplicates}
-                      onCopyContent={onCopyToClipboard}
-                      onSort={handleSort}
-                      getThemedListColor={getThemedListColor}
-                      getListContent={getListContent}
-                      canRemove={allLists.length > 2}
-                      setLists={setLists}
-                    />
-                  </Grid>
-                );
-              })}
-            </Grid>
-          </Paper>
-        </Grid>
-      ))}
+              <Grid container spacing={3}>
+                {categoryLists.map((list) => {
+                  console.log(
+                    `Rendering list ${list.id} (${list.name}) in category ${category}:`,
+                    list
+                  );
+                  const allLists = Object.values(groupedLists).flat();
+
+                  return (
+                    <Grid item xs={12} md={6} key={list.id}>
+                      <ListCard
+                        list={list}
+                        compareMode={compareMode}
+                        caseSensitive={caseSensitive}
+                        immediateInput={immediateInputs[list.id]}
+                        onInputChange={onInputChange}
+                        onOpenSettings={onOpenSettings}
+                        onOpenFilter={onOpenFilterDialog}
+                        onRename={onOpenRenameDialog}
+                        onRemove={(id) =>
+                          removeList(
+                            id,
+                            allLists,
+                            setLists,
+                            selectedLists,
+                            setSelectedLists
+                          )
+                        }
+                        onClear={handleClearList}
+                        onTrimDuplicates={trimDuplicates}
+                        onCopyContent={onCopyToClipboard}
+                        onSort={handleSort}
+                        getThemedListColor={getThemedListColor}
+                        getListContent={getListContent}
+                        canRemove={allLists.length > 2}
+                        setLists={setLists}
+                      />
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            </Paper>
+          </Grid>
+        );
+      })}
     </Grid>
   );
 };

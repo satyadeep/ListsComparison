@@ -10,6 +10,13 @@ import {
   Typography,
   IconButton,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  List,
+  ListItem,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
@@ -21,6 +28,8 @@ const ConfigManager = ({ onSave, onLoad }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [configs, setConfigs] = useState([]);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [loadDialogOpen, setLoadDialogOpen] = useState(false);
+  const [configName, setConfigName] = useState("");
 
   // Fetch configurations when component mounts
   useEffect(() => {
@@ -74,6 +83,44 @@ const ConfigManager = ({ onSave, onLoad }) => {
     loadConfigurations(); // Refresh the list after saving
   };
 
+  const handleSaveClick = () => {
+    setSaveDialogOpen(true);
+  };
+
+  const handleLoadClick = async () => {
+    setLoadDialogOpen(true);
+    try {
+      const configs = await getAllConfigurations();
+      setConfigs(configs);
+    } catch (error) {
+      console.error("Failed to load configurations:", error);
+    }
+  };
+
+  const handleSave = () => {
+    if (configName.trim()) {
+      onSave(configName.trim());
+      setSaveDialogOpen(false);
+      setConfigName("");
+    }
+  };
+
+  const handleLoad = (config) => {
+    onLoad(config);
+    setLoadDialogOpen(false);
+  };
+
+  const handleDelete = async (id, event) => {
+    event.stopPropagation(); // Prevent loading the configuration when deleting
+    try {
+      await deleteConfiguration(id);
+      const updatedConfigs = configs.filter((config) => config.id !== id);
+      setConfigs(updatedConfigs);
+    } catch (error) {
+      console.error("Failed to delete configuration:", error);
+    }
+  };
+
   return (
     <>
       <Box sx={{ display: "flex", gap: 1 }}>
@@ -82,9 +129,16 @@ const ConfigManager = ({ onSave, onLoad }) => {
             startIcon={<SaveIcon />}
             variant="outlined"
             color="info"
-            onClick={() => setSaveDialogOpen(true)}
+            onClick={handleSaveClick}
             size="small"
-            sx={{ bgcolor: "rgba(255, 255, 255, 0.9)" }}
+            sx={{
+              color: "inherit",
+              borderColor: "inherit",
+              "&:hover": {
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                borderColor: "inherit",
+              },
+            }}
           >
             Save
           </Button>
@@ -95,9 +149,16 @@ const ConfigManager = ({ onSave, onLoad }) => {
             startIcon={<FolderOpenIcon />}
             variant="outlined"
             color="info"
-            onClick={handleClick}
+            onClick={handleLoadClick}
             size="small"
-            sx={{ bgcolor: "rgba(255, 255, 255, 0.9)" }}
+            sx={{
+              color: "inherit",
+              borderColor: "inherit",
+              "&:hover": {
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                borderColor: "inherit",
+              },
+            }}
             disabled={configs.length === 0}
           >
             Load
@@ -168,6 +229,65 @@ const ConfigManager = ({ onSave, onLoad }) => {
         onClose={() => setSaveDialogOpen(false)}
         onSave={handleSaveConfig}
       />
+
+      {/* Save Configuration Dialog */}
+      <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)}>
+        <DialogTitle>Save Configuration</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Configuration Name"
+            type="text"
+            fullWidth
+            value={configName}
+            onChange={(e) => setConfigName(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleSave} color="primary" variant="contained">
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Load Configuration Dialog */}
+      <Dialog open={loadDialogOpen} onClose={() => setLoadDialogOpen(false)}>
+        <DialogTitle>Load Configuration</DialogTitle>
+        <DialogContent>
+          {configs.length === 0 ? (
+            <Box sx={{ py: 2 }}>No saved configurations found.</Box>
+          ) : (
+            <List>
+              {configs.map((config) => (
+                <ListItem
+                  button
+                  key={config.id}
+                  onClick={() => handleLoad(config)}
+                  secondaryAction={
+                    <IconButton
+                      edge="end"
+                      aria-label="delete"
+                      onClick={(e) => handleDelete(config.id, e)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  }
+                >
+                  <ListItemText
+                    primary={config.name}
+                    secondary={new Date(config.timestamp).toLocaleString()}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLoadDialogOpen(false)}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

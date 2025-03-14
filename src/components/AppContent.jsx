@@ -18,6 +18,8 @@ import ListSettingsDialog from "./ListSettingsDialog";
 import FilterDialog from "./FilterDialog";
 import ListRenameDialog from "./ListRenameDialog";
 import { useListNaming } from "../hooks/useListNaming";
+import { useImportExport } from "../hooks/useImportExport";
+import { useNotification } from "../hooks/useNotification";
 
 function AppContent() {
   // State declarations (keeping all the state here for now)
@@ -62,6 +64,19 @@ function AppContent() {
 
   // Create debounced values for each list's content
   const debouncedInputs = useDebounce(immediateInputs, 300);
+
+  // Use notification hook
+  const { showNotification, closeNotification } = useNotification();
+
+  // Use import/export hook with all necessary parameters
+  const { importData, exportData } = useImportExport(
+    lists,
+    setLists,
+    setImmediateInputs,
+    notification ? setNotification : showNotification,
+    categories,
+    setCategories
+  );
 
   // Update lists when debounced inputs change
   useEffect(() => {
@@ -210,9 +225,10 @@ function AppContent() {
   // Function to save the current state as a new configuration
   const handleSaveConfiguration = async (name) => {
     try {
+      // Include categories in the saved data
       const configData = {
         lists,
-        categories,
+        categories, // Make sure categories are included
         compareMode,
         comparisonType,
         caseSensitive,
@@ -221,51 +237,100 @@ function AppContent() {
 
       await saveConfiguration(name, configData);
 
-      setNotification({
-        open: true,
-        message: "Configuration saved successfully",
-        severity: "success",
-      });
+      // Show notification
+      if (typeof showNotification === "function") {
+        showNotification("Configuration saved successfully", "success");
+      } else {
+        setNotification({
+          open: true,
+          message: "Configuration saved successfully",
+          severity: "success",
+        });
+      }
     } catch (error) {
       console.error("Failed to save configuration:", error);
-      setNotification({
-        open: true,
-        message: "Failed to save configuration",
-        severity: "error",
-      });
+      // Show error notification
+      if (typeof showNotification === "function") {
+        showNotification("Failed to save configuration", "error");
+      } else {
+        setNotification({
+          open: true,
+          message: "Failed to save configuration",
+          severity: "error",
+        });
+      }
     }
   };
 
   // Function to load a saved configuration
   const handleLoadConfiguration = (config) => {
     try {
+      console.log("Loading configuration:", config);
       const { data } = config;
-      setLists(data.lists);
-      setCompareMode(data.compareMode);
-      setComparisonType(data.comparisonType);
-      setCaseSensitive(data.caseSensitive);
-      setSelectedLists(data.selectedLists);
-      if (data.categories) {
+
+      // Update state with the loaded configuration
+      setLists(data.lists || []);
+      setCompareMode(data.compareMode || "text");
+      setComparisonType(data.comparisonType || "union");
+      setCaseSensitive(data.caseSensitive || false);
+      setSelectedLists(data.selectedLists || []);
+
+      // Update categories with special handling for null/undefined
+      if (data.categories && Array.isArray(data.categories)) {
+        console.log("Setting categories from config:", data.categories);
         setCategories(data.categories);
+      } else {
+        // Extract unique categories from lists
+        const uniqueCategories = new Set(["Default"]);
+        if (data.lists && Array.isArray(data.lists)) {
+          data.lists.forEach((list) => {
+            if (list.category) {
+              uniqueCategories.add(list.category);
+            }
+          });
+        }
+        const extractedCategories = Array.from(uniqueCategories);
+        console.log("Extracted categories from lists:", extractedCategories);
+        setCategories(extractedCategories);
       }
+
+      // Update immediateInputs with the loaded list content
       const inputs = {};
-      data.lists.forEach((list) => {
-        inputs[list.id] = list.content;
-      });
+      if (data.lists && Array.isArray(data.lists)) {
+        data.lists.forEach((list) => {
+          inputs[list.id] = list.content || "";
+        });
+      }
       setImmediateInputs(inputs);
 
-      setNotification({
-        open: true,
-        message: `Configuration "${config.name}" loaded successfully`,
-        severity: "success",
-      });
+      // Show success notification
+      if (typeof showNotification === "function") {
+        showNotification(
+          `Configuration "${config.name}" loaded successfully`,
+          "success"
+        );
+      } else if (typeof setNotification === "function") {
+        setNotification({
+          open: true,
+          message: `Configuration "${config.name}" loaded successfully`,
+          severity: "success",
+        });
+      }
     } catch (error) {
       console.error("Failed to load configuration:", error);
-      setNotification({
-        open: true,
-        message: "Failed to load configuration",
-        severity: "error",
-      });
+      // Show error notification
+      if (typeof showNotification === "function") {
+        showNotification(
+          "Failed to load configuration: " + error.message,
+          "error"
+        );
+      } else if (typeof setNotification === "function") {
+        setNotification({
+          open: true,
+          message: "Failed to load configuration: " + error.message,
+          severity: "error",
+        });
+      }
     }
   };
 
@@ -437,6 +502,42 @@ function AppContent() {
     [categories]
   );
 
+  // Add function to handle category deletion
+  const handleDeleteCategory = useCallback((categoryToDelete) => {
+    // Cannot delete the Default category
+    if (categoryToDelete === "Default") {
+      return;
+    }
+
+    // Update lists to move them to Default category
+    setLists((prevLists) =>
+      prevLists.map((list) =>
+        list.category === categoryToDelete
+          ? { ...list, category: "Default" }
+          : list
+      )
+    );
+
+    // Remove the category from the categories list
+    setCategories((prevCategories) =>
+      prevCategories.filter((category) => category !== categoryToDelete)
+    );
+
+    // Show success notification
+    if (typeof showNotification === "function") {
+      showNotification(
+        `Category "${categoryToDelete}" deleted successfully`,
+        "success"
+      );
+    } else if (typeof setNotification === "function") {
+      setNotification({
+        open: true,
+        message: `Category "${categoryToDelete}" deleted successfully`,
+        severity: "success",
+      });
+    }
+  }, []);
+
   // Updated function to add a list with custom name and category
   const handleAddList = useCallback(
     (category = "Default") => {
@@ -524,14 +625,50 @@ function AppContent() {
     setNotification({ ...notification, open: false });
   };
 
+  // Create a handler for clearing all lists
+  const handleClearAll = useCallback(() => {
+    // Create empty inputs object based on current lists
+    const emptyInputs = {};
+    lists.forEach((list) => {
+      emptyInputs[list.id] = "";
+    });
+
+    // Update immediateInputs first to clear UI immediately
+    setImmediateInputs(emptyInputs);
+
+    // Clear all list contents but keep structure
+    setLists((prevLists) =>
+      prevLists.map((list) => ({ ...list, content: "" }))
+    );
+
+    // Clear selected lists
+    setSelectedLists([]);
+
+    // Clear filtered contents
+    if (typeof setFilteredContents === "function") {
+      setFilteredContents({});
+    }
+
+    // Show confirmation notification
+    if (typeof showNotification === "function") {
+      showNotification("All lists cleared", "info");
+    } else if (typeof setNotification === "function") {
+      setNotification({
+        open: true,
+        message: "All lists cleared",
+        severity: "info",
+      });
+    }
+  }, [lists, setLists, setImmediateInputs, setSelectedLists]);
+
   return (
     <>
       <CssBaseline />
       <AppHeader
         onSaveConfiguration={handleSaveConfiguration}
         onLoadConfiguration={handleLoadConfiguration}
-        onImport={handleImportData}
-        onExport={handleExportData}
+        onImport={importData}
+        onExport={() => exportData(results)}
       />
 
       <Container>
@@ -542,7 +679,7 @@ function AppContent() {
           categories={categories}
           onModeChange={setCompareMode}
           onCaseSensitivityChange={setCaseSensitive}
-          onClearAll={() => clearAll(lists, setLists, setSelectedLists)}
+          onClearAll={handleClearAll}
           onAddList={handleAddList}
         />
 
@@ -561,6 +698,7 @@ function AppContent() {
           setLists={setLists}
           selectedLists={selectedLists}
           setSelectedLists={setSelectedLists}
+          onDeleteCategory={handleDeleteCategory}
         />
 
         <ResultsSection
@@ -595,11 +733,11 @@ function AppContent() {
       <Snackbar
         open={notification.open}
         autoHideDuration={5000}
-        onClose={handleCloseNotification}
+        onClose={closeNotification}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
-          onClose={handleCloseNotification}
+          onClose={closeNotification}
           severity={notification.severity}
           sx={{ width: "100%" }}
         >

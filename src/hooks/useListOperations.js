@@ -114,6 +114,28 @@ export function useListOperations(initialLists = []) {
     [categories]
   );
 
+  // Add function to delete category
+  const deleteCategory = useCallback((categoryToDelete) => {
+    // Cannot delete the Default category
+    if (categoryToDelete === "Default") {
+      return;
+    }
+
+    // Update lists to move them to Default category
+    setLists((prevLists) =>
+      prevLists.map((list) =>
+        list.category === categoryToDelete
+          ? { ...list, category: "Default" }
+          : list
+      )
+    );
+
+    // Remove the category from the categories list
+    setCategories((prevCategories) =>
+      prevCategories.filter((category) => category !== categoryToDelete)
+    );
+  }, []);
+
   // Clear all lists content
   const clearAll = useCallback((setSelectedLists) => {
     setLists((prevLists) =>
@@ -314,6 +336,7 @@ export function useListOperations(initialLists = []) {
     updateListName,
     updateListCategory,
     addCategory,
+    deleteCategory,
     clearAll,
     clearList,
     trimAndRemoveDuplicates,
