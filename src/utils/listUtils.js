@@ -489,3 +489,49 @@ export const trimAndRemoveDuplicates = (
     handleListChange(listId, uniqueContent.join("\n"), lists, setLists);
   }
 };
+
+// Define background colors for lists
+export const listColorsBg = [
+  "#f0f8ff", // AliceBlue
+  "#f5f5dc", // Beige
+  "#e6e6fa", // Lavender
+  "#f0fff0", // HoneyDew
+  "#fff0f5", // LavenderBlush
+];
+
+// Define border colors for lists
+export const listBorderColorsBg = [
+  "#295F98", // AliceBlue
+  "#A28B55", // Beige
+  "#624E88", // Lavender
+  "#5F6F65", // HoneyDew
+  "#C96868", // LavenderBlush
+];
+
+// Get color for a list based on its ID or index and the specified color palette
+export const getListColor = (
+  listId,
+  lists,
+  colorPaletteType = "background"
+) => {
+  // Find the index of the list in the array
+  const index = lists.findIndex((list) => list.id === listId);
+  console.log(listId, lists);
+  // Select the appropriate color array based on the colorPaletteType
+  let colorArray;
+  if (colorPaletteType === "border") {
+    colorArray = listBorderColorsBg;
+  } else {
+    // Default to background colors
+    colorArray = listColorsBg;
+  }
+
+  // If list is found, return the corresponding color from the array
+  // Use modulo to cycle through colors if there are more lists than colors
+  if (index !== -1) {
+    return colorArray[index % colorArray.length];
+  }
+
+  // Default color if list not found
+  return colorPaletteType === "border" ? "#cccccc" : "#ffffff";
+};

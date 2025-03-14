@@ -58,10 +58,11 @@ import {
   sortResultItems,
   getSortedItems,
   handleCaseSensitivityChange,
+  getListColor, // Add this import
 } from "./utils/listUtils";
 
 function App() {
-  // New state structure for dynamic lists
+  // New state structure for dynamic lists`
   const [lists, setLists] = useState([
     { id: 1, content: "" },
     { id: 2, content: "" },
@@ -191,7 +192,8 @@ function App() {
 
   // Array of colors to use for the list counts
   // const listColors = ["primary", "secondary", "success", "warning", "error"];
-  const listColors = ["#585123", "#ef476f", "#006494", "#8338ec", "#2f3e46"];
+  // const listColors = ["#585123", "#ef476f", "#006494", "#8338ec", "#2f3e46"];
+  // const listColorsBg = ["#F6F0F0", "#F8F3D9", "#BAD8B6", "#C6E7FF", "#F8EDE3"];
 
   // Handle trimming spaces in a list
   const handleTrimSpaces = (listId) => {
@@ -402,10 +404,16 @@ function App() {
   };
 
   // Display a result list with sorting
-  const ResultList = ({ title, items, listId }) => (
+  const ResultList = ({ title, items, listId, origListId }) => (
     <Paper
       elevation={3}
-      sx={{ p: 2, height: "100%", display: "flex", flexDirection: "column" }}
+      sx={{
+        p: 2,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: getListColor(origListId, lists, "background"),
+      }}
     >
       <Box
         display="flex"
@@ -419,7 +427,16 @@ function App() {
           title
         )}
       </Box>
-      <Box sx={{ flexGrow: 1, overflowY: "auto" }}>
+      <Box
+        sx={{
+          flexGrow: 1,
+          overflowY: "auto",
+          border: "2px solid",
+          borderColor: getListColor(origListId, lists, "border"),
+          backgroundColor: "white",
+          borderRadius: 1,
+        }}
+      >
         <List dense>
           {getSortedItems(
             items,
@@ -564,7 +581,7 @@ function App() {
                     color="primary"
                   />
                 }
-                label="Case sensitive"
+                label="Case sensitive Comparison"
                 sx={{ ml: 2 }}
               />
             )}
@@ -595,7 +612,13 @@ function App() {
         <Grid container spacing={3}>
           {lists.map((list, index) => (
             <Grid item xs={12} md={6} key={list.id}>
-              <Paper elevation={3} sx={{ p: 2 }}>
+              <Paper
+                elevation={3}
+                sx={{
+                  p: 2,
+                  backgroundColor: getListColor(list.id, lists, "background"),
+                }}
+              >
                 <Box
                   display="flex"
                   justifyContent="space-between"
@@ -678,6 +701,21 @@ function App() {
                     }, 10);
                   }}
                   variant="outlined"
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: getListColor(list.id, lists, "border"),
+                        borderWidth: 2,
+                      },
+                      "&:hover .MuiOutlinedInput-notchedOutline": {
+                        borderColor: getListColor(list.id, lists, "border"),
+                      },
+                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                        borderColor: getListColor(list.id, lists, "border"),
+                      },
+                      backgroundColor: "white",
+                    },
+                  }}
                 />
                 <Box
                   sx={{
@@ -865,7 +903,7 @@ function App() {
                           component="span"
                           sx={{ mr: 1 }}
                         >
-                          Only in List {listIndex + 1}
+                          Unique to List {listIndex + 1}
                         </Typography>
                         <Chip
                           label={`Total: ${result.uniqueValues.length}`}
@@ -874,14 +912,19 @@ function App() {
                           // color="white"
                           sx={{
                             fontWeight: "bold",
-                            bgcolor: listColors[listIndex % listColors.length],
                             color: "white",
+                            bgcolor: getListColor(
+                              result.listId,
+                              lists,
+                              "border"
+                            ),
                           }}
                         />
                       </Box>
                     }
                     items={result.uniqueValues}
                     listId={`unique-${result.listId}`}
+                    origListId={result.listId}
                   />
                 </Grid>
               );
