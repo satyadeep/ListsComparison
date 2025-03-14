@@ -539,3 +539,119 @@ export const getListColor = (
     ? "#ffffff"
     : "#D3F1DF";
 };
+
+// Compare all lists and get unique values for each list and common values
+export const compareAllLists = (lists, compareMode, caseSensitive) => {
+  const parsedLists = lists.map((list) => ({
+    id: list.id,
+    values: removeDuplicates(
+      parseInput(list.content, compareMode, caseSensitive),
+      compareMode,
+      caseSensitive
+    ),
+  }));
+
+  // Calculate results for each list and common values
+  const results = [];
+
+  // Find unique values for each list
+  parsedLists.forEach((currentList) => {
+    const otherListsValues = new Set(
+      parsedLists
+        .filter((list) => list.id !== currentList.id)
+        .flatMap((list) => list.values)
+    );
+
+    const uniqueValues = currentList.values.filter((value) => {
+      if (compareMode === "text" && !caseSensitive) {
+        // Case-insensitive comparison for text
+        return ![...otherListsValues].some(
+          (otherValue) =>
+            String(value).toLowerCase() === String(otherValue).toLowerCase()
+        );
+      }
+      return !otherListsValues.has(value);
+    });
+
+    results.push({
+      listId: currentList.id,
+      uniqueValues,
+    });
+  });
+
+  // Find common values across all lists
+  let commonValues = [];
+  if (parsedLists.length > 0 && parsedLists[0].values.length > 0) {
+    commonValues = parsedLists[0].values.filter((value) =>
+      parsedLists.every((list) => {
+        if (compareMode === "text" && !caseSensitive) {
+          // Case-insensitive comparison for text
+          return list.values.some(
+            (listValue) =>
+              String(value).toLowerCase() === String(listValue).toLowerCase()
+          );
+        }
+        return list.values.includes(value);
+      })
+    );
+  }
+
+  results.push({
+    listId: "common",
+    uniqueValues: commonValues,
+  });
+
+  return results;
+};
+
+// Calculate values that are common among selected lists (intersection) or all unique values (union)
+export const compareSelectedLists = (
+  lists,
+  selectedLists,
+  compareMode,
+  caseSensitive,
+  comparisonType
+) => {
+  if (selectedLists.length < 2) {
+    return [];
+  }
+
+  const selectedParsedLists = selectedLists.map((id) => {
+    const list = lists.find((list) => list.id === id);
+    return {
+      id,
+      values: removeDuplicates(
+        parseInput(list?.content || "", compareMode, caseSensitive),
+        compareMode,
+        caseSensitive
+      ),
+    };
+  });
+
+  if (selectedParsedLists.length > 0) {
+    if (comparisonType === "intersection") {
+      // Find common values (intersection)
+      return selectedParsedLists[0].values.filter((value) =>
+        selectedParsedLists.every((list) => {
+          if (compareMode === "text" && !caseSensitive) {
+            // Case-insensitive comparison for text
+            return list.values.some(
+              (listValue) =>
+                String(value).toLowerCase() === String(listValue).toLowerCase()
+            );
+          }
+          return list.values.includes(value);
+        })
+      );
+    } else {
+      // Find all unique values (union)
+      return removeDuplicates(
+        selectedParsedLists.flatMap((list) => list.values),
+        compareMode,
+        caseSensitive
+      );
+    }
+  }
+
+  return [];
+};

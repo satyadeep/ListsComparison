@@ -69,6 +69,9 @@ import {
   transformCommonToSentenceCase,
   transformCommonToCamelCase,
   transformCommonToPascalCase,
+  compareAllLists,
+  compareSelectedLists,
+  handleTrimSpaces,
 } from "./utils/listUtils";
 
 function App() {
@@ -88,134 +91,21 @@ function App() {
 
   // Compare all lists
   useEffect(() => {
-    const parsedLists = lists.map((list) => ({
-      id: list.id,
-      values: removeDuplicates(
-        parseInput(list.content, compareMode, caseSensitive),
-        compareMode,
-        caseSensitive
-      ),
-    }));
-
-    // Calculate results for each list and common values
-    const newResults = [];
-
-    // Find unique values for each list
-    parsedLists.forEach((currentList) => {
-      const otherListsValues = new Set(
-        parsedLists
-          .filter((list) => list.id !== currentList.id)
-          .flatMap((list) => list.values)
-      );
-
-      const uniqueValues = currentList.values.filter((value) => {
-        if (compareMode === "text" && !caseSensitive) {
-          // Case-insensitive comparison for text
-          return ![...otherListsValues].some(
-            (otherValue) =>
-              String(value).toLowerCase() === String(otherValue).toLowerCase()
-          );
-        }
-        return !otherListsValues.has(value);
-      });
-
-      newResults.push({
-        listId: currentList.id,
-        uniqueValues,
-      });
-    });
-
-    // Find common values across all lists
-    let commonValues = [];
-    if (parsedLists.length > 0 && parsedLists[0].values.length > 0) {
-      commonValues = parsedLists[0].values.filter((value) =>
-        parsedLists.every((list) => {
-          if (compareMode === "text" && !caseSensitive) {
-            // Case-insensitive comparison for text
-            return list.values.some(
-              (listValue) =>
-                String(value).toLowerCase() === String(listValue).toLowerCase()
-            );
-          }
-          return list.values.includes(value);
-        })
-      );
-    }
-
-    newResults.push({
-      listId: "common",
-      uniqueValues: commonValues,
-    });
-
+    const newResults = compareAllLists(lists, compareMode, caseSensitive);
     setResults(newResults);
-  }, [lists, compareMode, caseSensitive]); // Updated dependencies
+  }, [lists, compareMode, caseSensitive]);
 
   // Calculate common values among selected lists
   useEffect(() => {
-    if (selectedLists.length < 2) {
-      setCommonSelected([]);
-      return;
-    }
-
-    const selectedParsedLists = selectedLists.map((id) => {
-      const list = lists.find((list) => list.id === id);
-      return {
-        id,
-        values: removeDuplicates(
-          parseInput(list?.content || "", compareMode, caseSensitive),
-          compareMode,
-          caseSensitive
-        ),
-      };
-    });
-
-    if (selectedParsedLists.length > 0) {
-      if (comparisonType === "intersection") {
-        // Find common values (intersection)
-        const common = selectedParsedLists[0].values.filter((value) =>
-          selectedParsedLists.every((list) => {
-            if (compareMode === "text" && !caseSensitive) {
-              // Case-insensitive comparison for text
-              return list.values.some(
-                (listValue) =>
-                  String(value).toLowerCase() ===
-                  String(listValue).toLowerCase()
-              );
-            }
-            return list.values.includes(value);
-          })
-        );
-        setCommonSelected(common);
-      } else {
-        // Find all unique values (union)
-        const union = removeDuplicates(
-          selectedParsedLists.flatMap((list) => list.values),
-          compareMode,
-          caseSensitive
-        );
-        setCommonSelected(union);
-      }
-    } else {
-      setCommonSelected([]);
-    }
-  }, [selectedLists, lists, comparisonType, compareMode, caseSensitive]);
-
-  // Handle trimming spaces in a list
-  const handleTrimSpaces = (listId) => {
-    setLists((prevLists) =>
-      prevLists.map((list) =>
-        list.id === listId
-          ? {
-              ...list,
-              content: list.content
-                .split(/[,\n]+/)
-                .map((item) => item.trim())
-                .join("\n"),
-            }
-          : list
-      )
+    const commonValues = compareSelectedLists(
+      lists,
+      selectedLists,
+      compareMode,
+      caseSensitive,
+      comparisonType
     );
-  };
+    setCommonSelected(commonValues);
+  }, [lists, selectedLists, compareMode, caseSensitive, comparisonType]);
 
   // Handle clearing a specific list's content
   const handleClearList = (listId) => {
@@ -579,8 +469,9 @@ function App() {
                       <IconButton
                         size="small"
                         onClick={() => {
-                          handleTrimSpaces(list.id);
-                          // After trimming, also remove duplicates
+                          // First trim spaces
+                          handleTrimSpaces(list.id, lists, setLists);
+                          // Then find the list with updated trimmed content and remove duplicates
                           const trimmedContent = parseInput(
                             lists.find((l) => l.id === list.id).content,
                             compareMode,
