@@ -8,6 +8,7 @@ import {
   ListItemText,
   IconButton,
   Tooltip,
+  Divider,
 } from "@mui/material";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
@@ -75,93 +76,84 @@ const ResultList = ({
     <Paper
       elevation={3}
       sx={{
-        p: 2,
         height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: getThemedListColor(origListId, "background"),
+        p: { xs: 1, sm: 2 },
+        width: "100%",
       }}
     >
       <Box
         display="flex"
         justifyContent="space-between"
-        alignItems="center"
-        mb={1}
+        alignItems="flex-start"
+        flexWrap="wrap"
+        gap={1}
       >
-        {typeof title === "string" ? (
-          <Typography variant="h6">{title}</Typography>
-        ) : (
-          title
-        )}
+        <Typography variant="h6" component="h3" gutterBottom>
+          {title} ({items.length})
+        </Typography>
+
+        <Box>
+          <Tooltip title="Copy to clipboard">
+            <IconButton
+              size="small"
+              onClick={() => onCopyToClipboard(items)}
+              sx={{ mr: 1 }}
+            >
+              <ContentCopyIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Sort Ascending">
+            <IconButton
+              size="small"
+              onClick={() =>
+                sortResultItems(
+                  listId,
+                  "asc",
+                  resultsSorting,
+                  setResultsSorting
+                )
+              }
+              color={resultsSorting[listId] === "asc" ? "primary" : "default"}
+            >
+              <ArrowUpwardIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Sort Descending">
+            <IconButton
+              size="small"
+              onClick={() =>
+                sortResultItems(
+                  listId,
+                  "desc",
+                  resultsSorting,
+                  setResultsSorting
+                )
+              }
+              color={resultsSorting[listId] === "desc" ? "primary" : "default"}
+            >
+              <ArrowDownwardIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
-      <Box
-        sx={{
-          flexGrow: 1,
-          overflowY: useVirtualization ? "hidden" : "auto",
-          border: "2px solid",
-          borderColor: getThemedListColor(origListId, "border"),
-          backgroundColor: "white",
-          borderRadius: 1,
-        }}
-      >
-        {useVirtualization ? (
-          <VirtualizedList items={sortedItems} maxHeight={400} />
-        ) : (
-          <List dense>
-            {sortedItems.length > 0 ? (
-              sortedItems.map((item, index) => (
-                <ListItem key={index}>
-                  <ListItemText primary={item} />
-                </ListItem>
-              ))
-            ) : (
-              <ListItem>
-                <ListItemText primary="No items" />
-              </ListItem>
-            )}
-          </List>
-        )}
-      </Box>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "flex-end",
-          pt: 1,
-          mt: "auto",
-        }}
-      >
-        <Tooltip title="Copy to clipboard">
-          <IconButton
-            size="small"
-            onClick={() => onCopyToClipboard(items)}
-            sx={{ mr: 1 }}
-          >
-            <ContentCopyIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Sort Ascending">
-          <IconButton
-            size="small"
-            onClick={() =>
-              sortResultItems(listId, "asc", resultsSorting, setResultsSorting)
-            }
-            color={resultsSorting[listId] === "asc" ? "primary" : "default"}
-          >
-            <ArrowUpwardIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Sort Descending">
-          <IconButton
-            size="small"
-            onClick={() =>
-              sortResultItems(listId, "desc", resultsSorting, setResultsSorting)
-            }
-            color={resultsSorting[listId] === "desc" ? "primary" : "default"}
-          >
-            <ArrowDownwardIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Box>
+
+      <Divider sx={{ mb: 1 }} />
+
+      {items.length > 0 ? (
+        <Box
+          sx={{
+            height: 250,
+            overflow: "auto",
+            width: "100%",
+          }}
+        >
+          <VirtualizedList items={sortedItems} height={250} />
+        </Box>
+      ) : (
+        <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+          No items found
+        </Typography>
+      )}
     </Paper>
   );
 };

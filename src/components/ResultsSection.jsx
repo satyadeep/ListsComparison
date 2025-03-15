@@ -1,5 +1,5 @@
 import React from "react";
-import { Grid, Box, Typography, Chip } from "@mui/material";
+import { Box, Typography, Divider, Grid } from "@mui/material";
 import ResultList from "./ResultList";
 
 const ResultsSection = ({
@@ -12,18 +12,36 @@ const ResultsSection = ({
   onCopyToClipboard,
   getListContent,
 }) => {
-  return (
-    <Grid container spacing={4}>
-      <Grid item xs={12}>
-        <Typography variant="h5" gutterBottom sx={{ mt: 3 }}>
-          Results:
-        </Typography>
-      </Grid>
+  const commonResult = results.find((r) => r.listId === "common");
+  const uniqueResults = results.filter((result) => result.listId !== "common");
 
-      {/* Dynamic results with sequential numbering */}
-      {results
-        .filter((result) => result.listId !== "common")
-        .map((result) => {
+  return (
+    <Box sx={{ mt: 4, width: "100%" }}>
+      <Typography variant="h5" gutterBottom>
+        Comparison Results
+      </Typography>
+      <Divider sx={{ mb: 4 }} />
+
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ width: "100%", mx: 0 }}>
+        {/* Common Values */}
+        {commonResult && (
+          <Grid item xs={12} md={6} lg={4} sx={{ width: "100%" }}>
+            <ResultList
+              title="Common Values"
+              items={commonResult.uniqueValues}
+              listId="common"
+              origListId="common"
+              resultsSorting={resultsSorting}
+              setResultsSorting={setResultsSorting}
+              compareMode={compareMode}
+              caseSensitive={caseSensitive}
+              onCopyToClipboard={onCopyToClipboard}
+            />
+          </Grid>
+        )}
+
+        {/* Unique Values */}
+        {uniqueResults.map((result) => {
           const listIndex = lists.findIndex(
             (list) => list.id === result.listId
           );
@@ -36,25 +54,16 @@ const ResultsSection = ({
             <Grid
               item
               xs={12}
-              md={Math.max(3, Math.floor(12 / (lists.length + 1)))}
+              md={6}
+              lg={4}
               key={result.listId}
+              sx={{ width: "100%" }}
             >
               <ResultList
-                title={
-                  <Box display="flex" alignItems="center">
-                    <Typography variant="h6" component="span" sx={{ mr: 1 }}>
-                      Unique to {listName}
-                    </Typography>
-                    <Chip
-                      label={`Total: ${result.uniqueValues.length}`}
-                      size="small"
-                      sx={{ fontWeight: "bold" }}
-                    />
-                  </Box>
-                }
+                title={`Unique to ${listName}`}
                 items={result.uniqueValues}
-                listId={`unique-${result.listId}`}
-                origListId={result.listId - 1}
+                listId={result.listId}
+                origListId={result.listId}
                 resultsSorting={resultsSorting}
                 setResultsSorting={setResultsSorting}
                 compareMode={compareMode}
@@ -64,36 +73,8 @@ const ResultsSection = ({
             </Grid>
           );
         })}
-
-      {/* Common values across all lists */}
-      <Grid item xs={12} md={Math.max(3, Math.floor(12 / (lists.length + 1)))}>
-        <ResultList
-          title={
-            <Box display="flex" alignItems="center">
-              <Typography variant="h6" component="span" sx={{ mr: 1 }}>
-                Common to All Lists
-              </Typography>
-              <Chip
-                label={`Total: ${
-                  results.find((r) => r.listId === "common")?.uniqueValues
-                    .length || 0
-                }`}
-                size="small"
-                color="info"
-                sx={{ fontWeight: "bold" }}
-              />
-            </Box>
-          }
-          items={results.find((r) => r.listId === "common")?.uniqueValues || []}
-          listId="common"
-          resultsSorting={resultsSorting}
-          setResultsSorting={setResultsSorting}
-          compareMode={compareMode}
-          caseSensitive={caseSensitive}
-          onCopyToClipboard={onCopyToClipboard}
-        />
       </Grid>
-    </Grid>
+    </Box>
   );
 };
 

@@ -17,9 +17,10 @@ const VennDiagram = ({ lists, results }) => {
       const uniqueResults = results.filter((r) => r.listId !== "common");
       const commonResult = results.find((r) => r.listId === "common");
 
-      // Set up dimensions
-      const width = 500;
-      const height = 400;
+      // Set dimensions with responsive values
+      const containerWidth = vennRef.current.clientWidth || 500;
+      const width = Math.min(containerWidth, 500);
+      const height = Math.min(width * 0.8, 400);
       const centerX = width / 2;
       const centerY = height / 2;
 
@@ -371,9 +372,10 @@ const VennDiagram = ({ lists, results }) => {
     <Box
       sx={{
         mt: 4,
-        p: 2,
+        p: { xs: 1, sm: 2 },
         backgroundColor: theme.palette.background.paper,
         borderRadius: 1,
+        width: "100%",
       }}
     >
       <Typography variant="h6" gutterBottom>
@@ -385,8 +387,9 @@ const VennDiagram = ({ lists, results }) => {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          height: 400,
+          height: { xs: 300, sm: 400 },
           width: "100%",
+          overflow: "auto",
         }}
       >
         {lists.length < 2 && (

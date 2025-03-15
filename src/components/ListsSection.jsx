@@ -134,7 +134,7 @@ const ListsSection = ({
   console.log("Rendering ListsSection with groupedLists:", groupedLists);
 
   return (
-    <Grid container spacing={4}>
+    <Grid container spacing={{ xs: 2, md: 4 }} sx={{ width: "100%", mx: 0 }}>
       {Object.entries(groupedLists).map(([category, categoryLists]) => {
         console.log(
           `Rendering category ${category} with lists:`,
@@ -142,11 +142,16 @@ const ListsSection = ({
         );
 
         return (
-          <Grid item xs={12} key={category}>
+          <Grid
+            item
+            xs={12}
+            key={category}
+            sx={{ width: "100%", px: { xs: 0, sm: 2 } }}
+          >
             <Paper
               elevation={2}
               sx={{
-                p: 2,
+                p: { xs: 1, sm: 2 },
                 backgroundColor:
                   muiTheme.palette.mode === "dark"
                     ? "rgba(66, 66, 66, 0.5)"
@@ -159,6 +164,7 @@ const ListsSection = ({
                     : "#5c6bc0"
                 }`,
                 mb: 2,
+                width: "100%",
               }}
             >
               <CategoryHeader
@@ -170,7 +176,11 @@ const ListsSection = ({
 
               <Divider sx={{ mb: 2, mt: 1 }} />
 
-              <Grid container spacing={3}>
+              <Grid
+                container
+                spacing={{ xs: 2, sm: 3 }}
+                sx={{ width: "100%", mx: 0 }}
+              >
                 {categoryLists.map((list) => {
                   console.log(
                     `Rendering list ${list.id} (${list.name}) in category ${category}:`,
@@ -179,7 +189,13 @@ const ListsSection = ({
                   const allLists = Object.values(groupedLists).flat();
 
                   return (
-                    <Grid item xs={12} md={6} key={list.id}>
+                    <Grid
+                      item
+                      xs={12}
+                      md={6}
+                      key={list.id}
+                      sx={{ width: "100%" }}
+                    >
                       <ListCard
                         list={list}
                         compareMode={compareMode}

@@ -9,20 +9,18 @@ const VisualizationSection = ({ lists, results }) => {
   }
 
   return (
-    <Container>
-      <Box sx={{ mt: 6, mb: 2 }}>
-        <Typography variant="h5" gutterBottom>
-          Visual Data Analysis
-        </Typography>
-        <Divider sx={{ mb: 4 }} />
+    <Box sx={{ mt: 6, mb: 2, width: "100%", px: 0 }}>
+      <Typography variant="h5" gutterBottom>
+        Visual Data Analysis
+      </Typography>
+      <Divider sx={{ mb: 4 }} />
 
-        {/* Venn Diagram */}
-        {lists.length >= 2 && <VennDiagram lists={lists} results={results} />}
+      {/* Venn Diagram */}
+      {lists.length >= 2 && <VennDiagram lists={lists} results={results} />}
 
-        {/* Statistics Charts */}
-        <ListStatistics lists={lists} results={results} />
-      </Box>
-    </Container>
+      {/* Statistics Charts */}
+      <ListStatistics lists={lists} results={results} />
+    </Box>
   );
 };
 

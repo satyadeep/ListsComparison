@@ -82,20 +82,27 @@ const ListCard = ({
     <Paper
       elevation={3}
       sx={{
-        p: 2,
+        p: { xs: 1, sm: 2 },
         backgroundColor: getThemedListColor(list.id, "background"),
+        width: "100%",
       }}
     >
       <Box
         display="flex"
         justifyContent="space-between"
-        alignItems="center"
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        flexDirection={{ xs: "column", sm: "row" }}
         mb={1}
+        gap={1}
       >
-        <Box display="flex" alignItems="center">
+        <Box display="flex" alignItems="center" flexWrap="wrap" gap={1}>
           <Typography
             variant="h6"
-            sx={{ mr: 1, cursor: "pointer" }}
+            sx={{
+              mr: 1,
+              cursor: "pointer",
+              fontSize: { xs: "1rem", sm: "1.25rem" },
+            }}
             onClick={() => onRename(list)}
           >
             {list.name || `List ${list.id}`}
@@ -110,7 +117,7 @@ const ListCard = ({
               <DriveFileRenameOutlineIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Box display="flex" gap={1}>
+          <Box display="flex" gap={1} flexWrap="wrap">
             <Chip
               label={`Total: ${filteredItemCount}${
                 hasActiveFilter ? ` / ${originalItemCount}` : ""
@@ -145,7 +152,7 @@ const ListCard = ({
           </Box>
         </Box>
 
-        <Box>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
           {/* Filter button */}
           <Tooltip title={hasActiveFilter ? "Edit Filter" : "Filter List"}>
             <IconButton
@@ -223,6 +230,7 @@ const ListCard = ({
         }}
         variant="outlined"
         sx={{
+          width: "100%",
           "& .MuiOutlinedInput-root": {
             "& .MuiOutlinedInput-notchedOutline": {
               borderColor: getThemedListColor(list.id, "border"),
@@ -240,7 +248,15 @@ const ListCard = ({
       />
 
       {/* Action buttons */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          mt: 1,
+          flexWrap: { xs: "wrap", sm: "nowrap" },
+          gap: 1,
+        }}
+      >
         <Box>
           <Tooltip title="Trim spaces & remove duplicates">
             <IconButton size="small" onClick={() => onTrimDuplicates(list.id)}>

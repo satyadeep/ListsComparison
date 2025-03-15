@@ -15,11 +15,8 @@ const ExportMenu = (props) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
-  // Extract onExportText and onExportExcel with explicit logging
+  // Extract onExportText and onExportExcel
   const { onExportText, onExportExcel } = props;
-  console.log("ExportMenu props:", props);
-  console.log("onExportText type:", typeof onExportText);
-  console.log("onExportExcel type:", typeof onExportExcel);
 
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -34,7 +31,6 @@ const ExportMenu = (props) => {
       onExportText();
     } else {
       console.error("Export text function is not defined");
-      alert("Text export functionality is not available");
     }
     handleClose();
   };
@@ -44,9 +40,6 @@ const ExportMenu = (props) => {
       onExportExcel();
     } else {
       console.error("Export Excel function is not defined");
-      alert(
-        "Excel export functionality requires xlsx library. Please install with: npm install xlsx"
-      );
     }
     handleClose();
   };
@@ -58,15 +51,7 @@ const ExportMenu = (props) => {
           variant="outlined"
           startIcon={<FileDownloadIcon />}
           onClick={handleClick}
-          size="small"
-          sx={{
-            color: "inherit",
-            borderColor: "inherit",
-            "&:hover": {
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-              borderColor: "inherit",
-            },
-          }}
+          size="medium"
         >
           Export
         </Button>

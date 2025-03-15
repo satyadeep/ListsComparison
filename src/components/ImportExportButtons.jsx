@@ -3,15 +3,8 @@ import { Box, Tooltip, Button } from "@mui/material";
 import FileUploadIcon from "@mui/icons-material/FileUpload";
 import ExportMenu from "./ExportMenu";
 
-const ImportExportButtons = (props) => {
+const ImportExportButtons = ({ onImport, onExport, onExportExcel }) => {
   const fileInputRef = useRef(null);
-
-  // Extract props with explicit logging
-  const { onImport, onExport, onExportExcel } = props;
-  console.log("ImportExportButtons props:", props);
-  console.log("onImport type:", typeof onImport);
-  console.log("onExport type:", typeof onExport);
-  console.log("onExportExcel type:", typeof onExportExcel);
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -20,9 +13,7 @@ const ImportExportButtons = (props) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target.result;
-      if (typeof onImport === "function") {
-        onImport(content);
-      }
+      onImport(content);
     };
     reader.readAsText(file);
 
@@ -31,7 +22,7 @@ const ImportExportButtons = (props) => {
   };
 
   return (
-    <Box sx={{ display: "flex", gap: 1 }}>
+    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
       <input
         type="file"
         ref={fileInputRef}
@@ -39,27 +30,18 @@ const ImportExportButtons = (props) => {
         onChange={handleFileUpload}
         accept=".txt,.csv,.json"
       />
+
       <Tooltip title="Import data from file">
         <Button
           variant="outlined"
-          color="inherit"
           startIcon={<FileUploadIcon />}
           onClick={() => fileInputRef.current.click()}
-          size="small"
-          sx={{
-            color: "inherit",
-            borderColor: "inherit",
-            "&:hover": {
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-              borderColor: "inherit",
-            },
-          }}
+          size="medium"
         >
           Import
         </Button>
       </Tooltip>
 
-      {/* Pass both export functions to ExportMenu */}
       <ExportMenu onExportText={onExport} onExportExcel={onExportExcel} />
     </Box>
   );

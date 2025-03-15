@@ -9,6 +9,7 @@ import {
   Toolbar,
   Typography,
   Box,
+  Paper,
 } from "@mui/material";
 import ThemeToggle from "./ThemeToggle";
 import ImportExportButtons from "./ImportExportButtons";
@@ -715,7 +716,7 @@ function AppContent() {
   return (
     <>
       <CssBaseline />
-      <AppBar position="static" color="primary" sx={{ mb: 4, zIndex: 1300 }}>
+      <AppBar position="static" color="primary" sx={{ mb: 2, zIndex: 1300 }}>
         <Toolbar
           sx={{
             display: "flex",
@@ -734,20 +735,45 @@ function AppContent() {
             }}
           >
             <ThemeToggle />
+            {/* Removed the Import/Export and Config buttons from here */}
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      <Container
+        disableGutters={window.innerWidth < 600}
+        maxWidth="xl"
+        sx={{
+          px: { xs: 1, sm: 2, md: 3 },
+          width: "100%",
+          overflowX: "hidden",
+        }}
+      >
+        {/* Action buttons island - new section */}
+        <Paper
+          elevation={1}
+          sx={{
+            p: { xs: 1.5, sm: 2 },
+            mb: 3,
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "space-between",
+            gap: 2,
+          }}
+        >
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
             <ImportExportButtons
               onImport={importData}
               onExport={exportTextData}
-              onExportExcel={handleExportExcel} // Pass the Excel export handler
+              onExportExcel={handleExportExcel}
             />
             <ConfigManager
               onSave={handleSaveConfiguration}
               onLoad={handleLoadConfiguration}
             />
           </Box>
-        </Toolbar>
-      </AppBar>
+        </Paper>
 
-      <Container>
         <ControlPanel
           compareMode={compareMode}
           caseSensitive={caseSensitive}
