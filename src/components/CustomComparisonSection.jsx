@@ -1,44 +1,26 @@
 import React from "react";
 import {
-  Grid,
-  Paper,
+  Box,
   Typography,
+  Paper,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  OutlinedInput,
-  Box,
-  Chip,
-  FormLabel,
   ToggleButtonGroup,
   ToggleButton,
-  List,
-  ListItem,
-  ListItemText,
+  Divider,
+  Chip,
   IconButton,
   Tooltip,
+  useTheme,
 } from "@mui/material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import FormatSizeIcon from "@mui/icons-material/FormatSize";
-import AbcIcon from "@mui/icons-material/Abc";
-import TextFormatIcon from "@mui/icons-material/TextFormat";
-import TextFieldsIcon from "@mui/icons-material/TextFields";
-import FormatColorTextIcon from "@mui/icons-material/FormatColorText";
-import {
-  transformCommonToUppercase,
-  transformCommonToLowercase,
-  transformCommonToSentenceCase,
-  transformCommonToCamelCase,
-  transformCommonToPascalCase,
-  handleComparisonTypeChange,
-  sortResultItems,
-  getSortedItems,
-  handleSelectChange,
-} from "../utils/listUtils";
+import { handleComparisonTypeChange } from "../utils/listUtils";
 import VirtualizedList from "./VirtualizedList";
+import { getSortedItems } from "../utils/listUtils";
 
 const CustomComparisonSection = ({
   lists,
@@ -54,66 +36,101 @@ const CustomComparisonSection = ({
   caseSensitive,
   onCopyToClipboard,
 }) => {
-  return (
-    <Grid item xs={12} sx={{ mt: 4 }}>
-      <Paper elevation={3} sx={{ p: 2, background: "#f0f0f0" }}>
-        <Typography variant="h6" gutterBottom>
-          Custom List Comparison
-        </Typography>
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
 
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel id="custom-comparison-label">
+  // Get a distinct list ID for the custom results
+  const customListId = "custom-comparison";
+
+  // Handle sorting of custom comparison results
+  const handleSort = (direction) => {
+    setResultsSorting({
+      ...resultsSorting,
+      [customListId]:
+        direction === resultsSorting[customListId] ? null : direction,
+    });
+  };
+
+  // Get sorted items for display
+  const sortedItems = getSortedItems(
+    commonSelected,
+    customListId,
+    resultsSorting,
+    compareMode,
+    caseSensitive
+  );
+
+  // Get border and background colors based on the selected lists
+  const getBorderColor = () => {
+    return comparisonType === "intersection" ? "#8c6bc4" : "#2e7d32"; // Purple for intersection, green for union
+  };
+
+  const getBackgroundColor = () => {
+    if (isDarkMode) {
+      return comparisonType === "intersection"
+        ? "rgba(140, 107, 196, 0.15)"
+        : "rgba(46, 125, 50, 0.15)";
+    } else {
+      return comparisonType === "intersection"
+        ? "rgba(140, 107, 196, 0.08)"
+        : "rgba(46, 125, 50, 0.08)";
+    }
+  };
+
+  // Get selected list names for title
+  const selectedListNames = selectedLists
+    .map((id) => {
+      const list = lists.find((list) => list.id === id);
+      return list ? list.name || `List ${list.id}` : `List ${id}`;
+    })
+    .join(", ");
+
+  const title =
+    selectedLists.length >= 2
+      ? `${
+          comparisonType === "intersection" ? "Common in" : "All Items in"
+        }: ${selectedListNames}`
+      : "Select at least two lists to compare";
+
+  return (
+    <Box sx={{ mt: 4, width: "100%" }}>
+      <Typography variant="h5" gutterBottom>
+        Custom List Comparison
+      </Typography>
+      <Divider sx={{ mb: 4 }} />
+
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 3 }}>
+        {/* List selection */}
+        <FormControl sx={{ minWidth: 200, flexGrow: 1 }}>
+          <InputLabel id="list-select-label">
             Select Lists to Compare
           </InputLabel>
           <Select
-            labelId="custom-comparison-label"
-            id="custom-comparison"
+            labelId="list-select-label"
             multiple
             value={selectedLists}
-            onChange={(event) => handleSelectChange(event, setSelectedLists)}
-            input={
-              <OutlinedInput
-                id="select-lists"
-                label="Select Lists to Compare"
-              />
+            onChange={(e) => setSelectedLists(e.target.value)}
+            renderValue={(selected) =>
+              selected
+                .map((id) => {
+                  const list = lists.find((list) => list.id === id);
+                  return list ? list.name || `List ${list.id}` : `List ${id}`;
+                })
+                .join(", ")
             }
-            renderValue={(selected) => (
-              <Box
-                sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 0.5,
-                  borderRadius: 4,
-                  padding: 1,
-                }}
-              >
-                {selected
-                  // Filter out any selected IDs that no longer exist in the lists array
-                  .filter((value) => lists.some((list) => list.id === value))
-                  .map((value) => {
-                    // Get the actual list object
-                    const list = lists.find((list) => list.id === value);
-                    // Use list name if available, or fallback to index based name
-                    const listIndex = lists.findIndex((l) => l.id === value);
-                    const displayName = list?.name || `List ${listIndex + 1}`;
-
-                    return <Chip key={value} label={displayName} />;
-                  })}
-              </Box>
-            )}
+            sx={{ minHeight: 56 }}
           >
-            {lists.map((list, index) => (
+            {lists.map((list) => (
               <MenuItem key={list.id} value={list.id}>
-                {list.name || `List ${index + 1}`}
+                {list.name || `List ${list.id}`}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
 
-        <Box sx={{ mb: 2 }}>
-          <FormLabel component="legend" sx={{ mr: 2, display: "inline-block" }}>
-            Comparison Type:
-          </FormLabel>
+        {/* Comparison type selection */}
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <Typography sx={{ mr: 2 }}>Comparison Type:</Typography>
           <ToggleButtonGroup
             value={comparisonType}
             exclusive
@@ -125,13 +142,17 @@ const CustomComparisonSection = ({
           >
             <ToggleButton
               value="intersection"
-              aria-label="intersection mode"
+              aria-label="intersection"
               sx={{
                 "&.Mui-selected": {
-                  backgroundColor: "#1976d2",
+                  backgroundColor: isDarkMode
+                    ? "rgba(140, 107, 196, 0.7)"
+                    : "#8c6bc4",
                   color: "white",
                   "&:hover": {
-                    backgroundColor: "#1565c0",
+                    backgroundColor: isDarkMode
+                      ? "rgba(140, 107, 196, 0.8)"
+                      : "#7250b5",
                     color: "white",
                   },
                 },
@@ -141,13 +162,17 @@ const CustomComparisonSection = ({
             </ToggleButton>
             <ToggleButton
               value="union"
-              aria-label="union mode"
+              aria-label="union"
               sx={{
                 "&.Mui-selected": {
-                  backgroundColor: "#1976d2",
+                  backgroundColor: isDarkMode
+                    ? "rgba(46, 125, 50, 0.7)"
+                    : "#2e7d32",
                   color: "white",
                   "&:hover": {
-                    backgroundColor: "#1565c0",
+                    backgroundColor: isDarkMode
+                      ? "rgba(46, 125, 50, 0.8)"
+                      : "#246627",
                     color: "white",
                   },
                 },
@@ -157,206 +182,119 @@ const CustomComparisonSection = ({
             </ToggleButton>
           </ToggleButtonGroup>
         </Box>
+      </Box>
 
-        <Box sx={{ mt: 2, backgroundColor: "white" }}>
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <Box display="flex" alignItems="center">
-              <Typography variant="subtitle1" sx={{ mr: 1, padding: 1 }}>
-                {comparisonType === "intersection"
-                  ? "Common values among selected lists:"
-                  : "All values from selected lists (union):"}
-              </Typography>
-              <Chip
-                label={`Total: ${commonSelected.length}`}
-                size="small"
-                color="info"
-                sx={{ fontWeight: "bold" }}
-              />
-            </Box>
+      {/* Results Panel */}
+      <Paper
+        elevation={3}
+        sx={{
+          height: "100%",
+          p: { xs: 1, sm: 2 },
+          width: "100%",
+          borderLeft: `4px solid ${getBorderColor()}`,
+          backgroundColor: getBackgroundColor(),
+          color: theme.palette.text.primary,
+        }}
+      >
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          flexWrap="wrap"
+          gap={1}
+        >
+          <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+            <Typography variant="h6" component="h3">
+              {title}
+            </Typography>
+            <Chip
+              label={`${commonSelected.length} items`}
+              size="small"
+              sx={{
+                fontWeight: "bold",
+                bgcolor: getBorderColor(),
+                color: "white",
+                ml: 1,
+              }}
+            />
           </Box>
-          {/* Replace the List component with VirtualizedList for large datasets */}
-          {getSortedItems(
-            commonSelected,
-            "custom",
-            resultsSorting,
-            compareMode,
-            caseSensitive
-          ).length > 0 ? (
-            commonSelected.length > 50 ? (
-              <VirtualizedList
-                items={getSortedItems(
-                  commonSelected,
-                  "custom",
-                  resultsSorting,
-                  compareMode,
-                  caseSensitive
-                )}
-                maxHeight={300}
-              />
-            ) : (
-              <List dense>
-                {getSortedItems(
-                  commonSelected,
-                  "custom",
-                  resultsSorting,
-                  compareMode,
-                  caseSensitive
-                ).map((item, index) => (
-                  <ListItem key={index}>
-                    <ListItemText primary={item} />
-                  </ListItem>
-                ))}
-              </List>
-            )
-          ) : (
-            <ListItem>
-              <ListItemText
-                primary={
-                  selectedLists.length < 2
-                    ? "Select at least two lists to compare"
-                    : "No values found"
-                }
-              />
-            </ListItem>
-          )}
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
+
+          <Box>
             <Tooltip title="Copy to clipboard">
               <IconButton
                 size="small"
-                onClick={() => onCopyToClipboard(commonSelected)}
-                sx={{ mr: 1 }}
+                onClick={() => onCopyToClipboard(sortedItems)}
+                sx={{ ml: 1, color: theme.palette.text.secondary }}
+                disabled={commonSelected.length === 0}
               >
                 <ContentCopyIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Sort Ascending">
+            <Tooltip title="Sort ascending">
               <IconButton
                 size="small"
-                onClick={() =>
-                  sortResultItems(
-                    "custom",
-                    "asc",
-                    resultsSorting,
-                    setResultsSorting
-                  )
-                }
-                color={
-                  resultsSorting["custom"] === "asc" ? "primary" : "default"
-                }
+                onClick={() => handleSort("asc")}
+                sx={{
+                  ml: 1,
+                  color: theme.palette.text.secondary,
+                  backgroundColor:
+                    resultsSorting[customListId] === "asc"
+                      ? isDarkMode
+                        ? "rgba(255, 255, 255, 0.12)"
+                        : "rgba(0, 0, 0, 0.08)"
+                      : "transparent",
+                }}
+                disabled={commonSelected.length === 0}
               >
                 <ArrowUpwardIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Sort Descending">
+            <Tooltip title="Sort descending">
               <IconButton
                 size="small"
-                onClick={() =>
-                  sortResultItems(
-                    "custom",
-                    "desc",
-                    resultsSorting,
-                    setResultsSorting
-                  )
-                }
-                color={
-                  resultsSorting["custom"] === "desc" ? "primary" : "default"
-                }
+                onClick={() => handleSort("desc")}
+                sx={{
+                  ml: 1,
+                  color: theme.palette.text.secondary,
+                  backgroundColor:
+                    resultsSorting[customListId] === "desc"
+                      ? isDarkMode
+                        ? "rgba(255, 255, 255, 0.12)"
+                        : "rgba(0, 0, 0, 0.08)"
+                      : "transparent",
+                }}
+                disabled={commonSelected.length === 0}
               >
                 <ArrowDownwardIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           </Box>
-
-          {/* Add text case transformation buttons for the result list */}
-          {commonSelected.length > 0 && (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                mt: 2,
-                borderTop: "1px solid #eee",
-                pt: 1,
-              }}
-            >
-              <Tooltip title="UPPERCASE">
-                <IconButton
-                  size="small"
-                  onClick={() =>
-                    transformCommonToUppercase(
-                      commonSelected,
-                      setCommonSelected
-                    )
-                  }
-                  sx={{ mx: 0.5 }}
-                >
-                  <FormatSizeIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="lowercase">
-                <IconButton
-                  size="small"
-                  onClick={() =>
-                    transformCommonToLowercase(
-                      commonSelected,
-                      setCommonSelected
-                    )
-                  }
-                  sx={{ mx: 0.5 }}
-                >
-                  <AbcIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Sentence case">
-                <IconButton
-                  size="small"
-                  onClick={() =>
-                    transformCommonToSentenceCase(
-                      commonSelected,
-                      setCommonSelected
-                    )
-                  }
-                  sx={{ mx: 0.5 }}
-                >
-                  <TextFormatIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="camelCase">
-                <IconButton
-                  size="small"
-                  onClick={() =>
-                    transformCommonToCamelCase(
-                      commonSelected,
-                      setCommonSelected
-                    )
-                  }
-                  sx={{ mx: 0.5 }}
-                >
-                  <TextFieldsIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="PascalCase">
-                <IconButton
-                  size="small"
-                  onClick={() =>
-                    transformCommonToPascalCase(
-                      commonSelected,
-                      setCommonSelected
-                    )
-                  }
-                  sx={{ mx: 0.5 }}
-                >
-                  <FormatColorTextIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Box>
-          )}
         </Box>
+
+        <Divider sx={{ my: 1 }} />
+
+        {selectedLists.length < 2 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+            Select at least two lists to compare
+          </Typography>
+        ) : commonSelected.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+            No matching items found
+          </Typography>
+        ) : (
+          <Box
+            sx={{
+              height: 250,
+              overflow: "auto",
+              width: "100%",
+              pl: 1,
+            }}
+          >
+            <VirtualizedList items={sortedItems} height={250} />
+          </Box>
+        )}
       </Paper>
-    </Grid>
+    </Box>
   );
 };
 

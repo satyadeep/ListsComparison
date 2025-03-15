@@ -9,13 +9,14 @@ import {
   IconButton,
   Tooltip,
   Divider,
+  Chip,
+  useTheme,
 } from "@mui/material";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import VirtualizedList from "./VirtualizedList";
-import { getSortedItems, sortResultItems } from "../utils/listUtils";
-import { useTheme as useMuiTheme } from "@mui/material/styles";
+import { getSortedItems, getListColor } from "../utils/listUtils";
 
 const ResultList = ({
   title,
@@ -27,10 +28,18 @@ const ResultList = ({
   compareMode,
   caseSensitive,
   onCopyToClipboard,
+  lists, // Make sure this prop is passed from the parent
 }) => {
-  const muiTheme = useMuiTheme();
-  // Use virtualization for lists with more than 50 items
-  const useVirtualization = items.length > 50;
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
+
+  const handleSort = (direction) => {
+    setResultsSorting({
+      ...resultsSorting,
+      [listId]: direction === resultsSorting[listId] ? null : direction,
+    });
+  };
+
   const sortedItems = getSortedItems(
     items,
     listId,
@@ -39,37 +48,30 @@ const ResultList = ({
     caseSensitive
   );
 
-  // Get theme-based colors for lists
-  const getThemedListColor = (listId, type) => {
-    if (type === "common") {
-      return muiTheme.palette.mode === "dark" ? "#2d2d2d" : "#f0f0f0";
+  // Get border color based on list ID using the same function that input lists use
+  const getBorderColor = () => {
+    if (listId === "common") return isDarkMode ? "#66bb6a" : "#4caf50"; // Green for common values, adjusted for dark mode
+
+    // Use the getListColor function from listUtils to ensure consistency
+    return getListColor(Number(origListId), lists, "border");
+  };
+
+  // Get background color based on list ID using the same function that input lists use
+  const getBackgroundColor = () => {
+    if (listId === "common") {
+      return isDarkMode ? "rgba(76, 175, 80, 0.15)" : "rgba(76, 175, 80, 0.08)";
     }
 
-    // Default fallback colors
-    const listColorsBg = [
-      "#f0f8ff",
-      "#f5f5dc",
-      "#e6e6fa",
-      "#FBF9F1",
-      "#fff0f5",
-    ];
+    // For unique values in dark mode, use a darker version of the background color
+    const baseColor = getListColor(Number(origListId), lists, "background");
 
-    const listBorderColorsBg = [
-      "#295F98",
-      "#A28B55",
-      "#624E88",
-      "#867070",
-      "#C96868",
-    ];
+    // If in dark mode, darken the background color appropriately
+    if (isDarkMode) {
+      // Adjust colors for dark mode - make them darker but still distinguishable
+      return theme.palette.background.paper;
+    }
 
-    const index = typeof listId === "number" ? listId % 5 : 0;
-
-    const colorArray =
-      type === "border"
-        ? muiTheme.listBorders || listBorderColorsBg
-        : muiTheme.listColors || listColorsBg;
-
-    return colorArray[index % colorArray.length];
+    return baseColor;
   };
 
   return (
@@ -79,57 +81,76 @@ const ResultList = ({
         height: "100%",
         p: { xs: 1, sm: 2 },
         width: "100%",
+        borderLeft: `4px solid ${getBorderColor()}`,
+        backgroundColor: getBackgroundColor(),
+        color: theme.palette.text.primary,
       }}
     >
       <Box
         display="flex"
         justifyContent="space-between"
-        alignItems="flex-start"
+        alignItems="center"
         flexWrap="wrap"
         gap={1}
       >
-        <Typography variant="h6" component="h3" gutterBottom>
-          {title} ({items.length})
-        </Typography>
+        <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+          <Typography variant="h6" component="h3">
+            {title}
+          </Typography>
+          <Chip
+            label={`${items.length} items`}
+            size="small"
+            sx={{
+              fontWeight: "bold",
+              bgcolor: getBorderColor(),
+              color: "white",
+              ml: 1,
+            }}
+          />
+        </Box>
 
         <Box>
           <Tooltip title="Copy to clipboard">
             <IconButton
               size="small"
-              onClick={() => onCopyToClipboard(items)}
-              sx={{ mr: 1 }}
+              onClick={() => onCopyToClipboard(sortedItems)}
+              sx={{ ml: 1, color: theme.palette.text.secondary }}
             >
               <ContentCopyIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Sort Ascending">
+          <Tooltip title="Sort ascending">
             <IconButton
               size="small"
-              onClick={() =>
-                sortResultItems(
-                  listId,
-                  "asc",
-                  resultsSorting,
-                  setResultsSorting
-                )
-              }
-              color={resultsSorting[listId] === "asc" ? "primary" : "default"}
+              onClick={() => handleSort("asc")}
+              sx={{
+                ml: 1,
+                color: theme.palette.text.secondary,
+                backgroundColor:
+                  resultsSorting[listId] === "asc"
+                    ? isDarkMode
+                      ? "rgba(255, 255, 255, 0.12)"
+                      : "rgba(0, 0, 0, 0.08)"
+                    : "transparent",
+              }}
             >
               <ArrowUpwardIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Sort Descending">
+          <Tooltip title="Sort descending">
             <IconButton
               size="small"
-              onClick={() =>
-                sortResultItems(
-                  listId,
-                  "desc",
-                  resultsSorting,
-                  setResultsSorting
-                )
-              }
-              color={resultsSorting[listId] === "desc" ? "primary" : "default"}
+              onClick={() => handleSort("desc")}
+              sx={{
+                ml: 1,
+                color: theme.palette.text.secondary,
+                backgroundColor:
+                  resultsSorting[listId] === "desc"
+                    ? isDarkMode
+                      ? "rgba(255, 255, 255, 0.12)"
+                      : "rgba(0, 0, 0, 0.08)"
+                    : "transparent",
+              }}
             >
               <ArrowDownwardIcon fontSize="small" />
             </IconButton>
@@ -137,7 +158,7 @@ const ResultList = ({
         </Box>
       </Box>
 
-      <Divider sx={{ mb: 1 }} />
+      <Divider sx={{ my: 1 }} />
 
       {items.length > 0 ? (
         <Box
@@ -145,6 +166,7 @@ const ResultList = ({
             height: 250,
             overflow: "auto",
             width: "100%",
+            pl: 1,
           }}
         >
           <VirtualizedList items={sortedItems} height={250} />

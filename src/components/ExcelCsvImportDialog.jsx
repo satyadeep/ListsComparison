@@ -13,6 +13,7 @@ import {
   Box,
   CircularProgress,
   Alert,
+  useTheme,
 } from "@mui/material";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
@@ -25,6 +26,7 @@ const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [parsedData, setParsedData] = useState([]);
+  const theme = useTheme();
 
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
@@ -176,7 +178,8 @@ const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
               <Typography variant="subtitle1">Preview:</Typography>
               <Box
                 sx={{
-                  backgroundColor: "#f5f5f5",
+                  backgroundColor:
+                    theme.palette.mode === "dark" ? "#333" : "#f5f5f5",
                   p: 2,
                   borderRadius: 1,
                   maxHeight: "200px",
@@ -184,14 +187,21 @@ const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
                 }}
               >
                 {preview.map((item, index) => (
-                  <Typography key={index} variant="body2">
+                  <Typography
+                    key={index}
+                    variant="body2"
+                    sx={{
+                      color: theme.palette.mode === "dark" ? "#fff" : "#333",
+                      fontFamily: "monospace",
+                    }}
+                  >
                     {item}
                   </Typography>
                 ))}
                 {preview.length > 0 && (
                   <Typography
                     variant="body2"
-                    color="textSecondary"
+                    color={theme.palette.text.secondary}
                     sx={{ mt: 1 }}
                   >
                     ... and more

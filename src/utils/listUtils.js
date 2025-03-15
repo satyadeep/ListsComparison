@@ -511,7 +511,7 @@ export const trimAndRemoveDuplicates = (
   }
 };
 
-// Define background colors for lists
+// Define background colors for lists in light mode
 export const listColorsBg = [
   "#f0f8ff", // AliceBlue
   "#f5f5dc", // Beige
@@ -529,22 +529,32 @@ export const listBorderColorsBg = [
   "#C96868", // LavenderBlush
 ];
 
+// Define background colors for lists in dark mode
+export const listColorsBgDark = [
+  "#0b2744", // Dark AliceBlue
+  "#3a3424", // Dark Beige
+  "#27203d", // Dark Lavender
+  "#302a2a", // Dark HoneyDew
+  "#3d1a22", // Dark LavenderBlush
+];
+
 // Get color for a list based on its ID or index and the specified color palette
 export const getListColor = (
   listId,
   lists,
-  colorPaletteType = "background"
+  colorPaletteType = "background",
+  isDarkMode = false
 ) => {
   // Find the index of the list in the array
   const index = lists.findIndex((list) => list.id === listId);
-  console.log(listId, lists);
+
   // Select the appropriate color array based on the colorPaletteType
   let colorArray;
   if (colorPaletteType === "border") {
     colorArray = listBorderColorsBg;
   } else {
-    // Default to background colors
-    colorArray = listColorsBg;
+    // For background, check if dark mode
+    colorArray = isDarkMode ? listColorsBgDark : listColorsBg;
   }
 
   // If list is found, return the corresponding color from the array
@@ -554,11 +564,11 @@ export const getListColor = (
   }
 
   // Default color if list not found
-  return colorPaletteType === "border"
-    ? "#cccccc"
-    : colorPaletteType === "background"
-    ? "#ffffff"
-    : "#D3F1DF";
+  if (isDarkMode) {
+    return colorPaletteType === "border" ? "#555555" : "#1e1e1e";
+  } else {
+    return colorPaletteType === "border" ? "#cccccc" : "#ffffff";
+  }
 };
 
 // Compare all lists and get unique values for each list and common values

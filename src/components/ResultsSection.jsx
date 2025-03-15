@@ -12,7 +12,8 @@ const ResultsSection = ({
   onCopyToClipboard,
   getListContent,
 }) => {
-  const commonResult = results.find((r) => r.listId === "common");
+  // Separate common results from unique results
+  const commonResult = results.find((result) => result.listId === "common");
   const uniqueResults = results.filter((result) => result.listId !== "common");
 
   return (
@@ -36,19 +37,17 @@ const ResultsSection = ({
               compareMode={compareMode}
               caseSensitive={caseSensitive}
               onCopyToClipboard={onCopyToClipboard}
+              lists={lists} // Pass the full lists array
             />
           </Grid>
         )}
 
         {/* Unique Values */}
         {uniqueResults.map((result) => {
-          const listIndex = lists.findIndex(
-            (list) => list.id === result.listId
-          );
-          if (listIndex === -1) return null; // Skip if list was removed
-
-          // Get the actual list name from the lists array
-          const listName = lists[listIndex]?.name || `List ${listIndex + 1}`;
+          const list = lists.find((list) => list.id === result.listId);
+          const listName = list
+            ? list.name || `List ${list.id}`
+            : `List ${result.listId}`;
 
           return (
             <Grid
@@ -69,6 +68,7 @@ const ResultsSection = ({
                 compareMode={compareMode}
                 caseSensitive={caseSensitive}
                 onCopyToClipboard={onCopyToClipboard}
+                lists={lists} // Pass the full lists array
               />
             </Grid>
           );

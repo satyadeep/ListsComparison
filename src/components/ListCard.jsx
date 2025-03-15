@@ -10,6 +10,7 @@ import {
   Badge,
   Alert,
   Button,
+  useTheme,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -33,6 +34,7 @@ import {
   convertToSentenceCase,
   convertToCamelCase,
   convertToPascalCase,
+  getListColor,
 } from "../utils/listUtils";
 import ExcelCsvImportDialog from "./ExcelCsvImportDialog"; // Import the new component
 
@@ -54,7 +56,10 @@ const ListCard = ({
   getListContent,
   canRemove,
   setLists,
+  allLists, // Make sure this prop is passed
 }) => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const hasActiveFilter = !!list.activeFilter;
   const originalItemCount = getListItemCount(
@@ -78,13 +83,21 @@ const ListCard = ({
     onInputChange(list.id, columnData);
   };
 
+  // Use the same color function as result windows
+  const getBorderColor = () =>
+    getListColor(list.id, allLists || [], "border", isDarkMode);
+  const getBackgroundColor = () =>
+    getListColor(list.id, allLists || [], "background", isDarkMode);
+
   return (
     <Paper
       elevation={3}
       sx={{
         p: { xs: 1, sm: 2 },
-        backgroundColor: getThemedListColor(list.id, "background"),
+        backgroundColor: getBackgroundColor(),
+        borderLeft: `4px solid ${getBorderColor()}`,
         width: "100%",
+        color: theme.palette.text.primary,
       }}
     >
       <Box
@@ -125,7 +138,7 @@ const ListCard = ({
               size="small"
               sx={{
                 fontWeight: "bold",
-                bgcolor: getThemedListColor(list.id, "border"),
+                bgcolor: getBorderColor(),
                 color: "white",
               }}
             />
@@ -230,19 +243,18 @@ const ListCard = ({
         }}
         variant="outlined"
         sx={{
-          width: "100%",
           "& .MuiOutlinedInput-root": {
             "& .MuiOutlinedInput-notchedOutline": {
-              borderColor: getThemedListColor(list.id, "border"),
+              borderColor: getBorderColor(),
               borderWidth: 2,
             },
             "&:hover .MuiOutlinedInput-notchedOutline": {
-              borderColor: getThemedListColor(list.id, "border"),
+              borderColor: getBorderColor(),
             },
             "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-              borderColor: getThemedListColor(list.id, "border"),
+              borderColor: getBorderColor(),
             },
-            backgroundColor: "white",
+            backgroundColor: isDarkMode ? "rgba(255, 255, 255, 0.05)" : "white",
           },
         }}
       />
@@ -320,7 +332,7 @@ const ListCard = ({
           display: "flex",
           justifyContent: "center",
           mt: 1,
-          borderTop: `1px solid ${getThemedListColor(list.id, "border")}`,
+          borderTop: `1px solid ${getBorderColor()}`,
           pt: 1,
         }}
       >

@@ -22,6 +22,7 @@ const ListsSection = ({
   onDeleteCategory,
 }) => {
   const muiTheme = useMuiTheme();
+  const isDarkMode = muiTheme.palette.mode === "dark";
 
   // Get theme-based colors for lists
   const getThemedListColor = useCallback(
@@ -133,6 +134,9 @@ const ListsSection = ({
 
   console.log("Rendering ListsSection with groupedLists:", groupedLists);
 
+  // Get all lists for consistent color mapping
+  const allLists = Object.values(groupedLists).flat();
+
   return (
     <Grid container spacing={{ xs: 2, md: 4 }} sx={{ width: "100%", mx: 0 }}>
       {Object.entries(groupedLists).map(([category, categoryLists]) => {
@@ -186,7 +190,6 @@ const ListsSection = ({
                     `Rendering list ${list.id} (${list.name}) in category ${category}:`,
                     list
                   );
-                  const allLists = Object.values(groupedLists).flat();
 
                   return (
                     <Grid
@@ -222,6 +225,7 @@ const ListsSection = ({
                         getListContent={getListContent}
                         canRemove={allLists.length > 2}
                         setLists={setLists}
+                        allLists={allLists} // Pass all lists for color consistency
                       />
                     </Grid>
                   );
