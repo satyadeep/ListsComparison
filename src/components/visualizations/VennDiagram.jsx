@@ -1,10 +1,30 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Box, Typography, useTheme } from "@mui/material";
 import * as d3 from "d3";
 
 const VennDiagram = ({ lists, results }) => {
   const vennRef = useRef(null);
+  const containerRef = useRef(null);
   const theme = useTheme();
+  const [dimensions, setDimensions] = useState({ width: 500, height: 400 });
+
+  // Resize observer to make the diagram responsive
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        // Get the container width and set appropriate dimensions
+        const width = entry.contentRect.width;
+        const height = Math.min(width * 0.75, 400); // Height proportional to width with a max
+
+        setDimensions({ width, height });
+      }
+    });
+
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!lists || lists.length < 2 || !results || !vennRef.current) return;
@@ -17,26 +37,22 @@ const VennDiagram = ({ lists, results }) => {
       const uniqueResults = results.filter((r) => r.listId !== "common");
       const commonResult = results.find((r) => r.listId === "common");
 
-      // Set dimensions with responsive values
-      const containerWidth = vennRef.current.clientWidth || 500;
-      const width = Math.min(containerWidth, 500);
-      const height = Math.min(width * 0.8, 400);
+      // Set up dimensions
+      const width = dimensions.width;
+      const height = dimensions.height;
       const centerX = width / 2;
       const centerY = height / 2;
 
-      // Calculate circle dimensions based on unique item counts
-      const maxCount = Math.max(
-        ...uniqueResults.map((r) => r.uniqueValues.length),
-        1
-      );
-      const baseRadius = Math.min(width, height) * 0.25;
+      // Scale radius based on container size
+      const baseRadius = Math.min(width, height) * 0.2;
 
       // Create SVG
       const svg = d3
         .select(vennRef.current)
         .append("svg")
-        .attr("width", width)
-        .attr("height", height);
+        .attr("width", "100%")
+        .attr("height", height)
+        .attr("viewBox", `0 0 ${width} ${height}`);
 
       // Colors for the circles
       const colors = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
@@ -54,11 +70,13 @@ const VennDiagram = ({ lists, results }) => {
         const commonCount = commonResult ? commonResult.uniqueValues.length : 0;
 
         // Normalize circle sizes based on item counts
-        const radius1 = baseRadius * (0.7 + 0.3 * (count1 / maxCount));
-        const radius2 = baseRadius * (0.7 + 0.3 * (count2 / maxCount));
+        const radius1 =
+          baseRadius * (0.8 + 0.2 * (count1 / Math.max(count1, count2, 10)));
+        const radius2 =
+          baseRadius * (0.8 + 0.2 * (count2 / Math.max(count1, count2, 10)));
 
-        // Position circles with some overlap
-        const offset = Math.min(radius1, radius2) * 0.8;
+        // Position circles with some overlap - make sure they fit on small screens
+        const offset = Math.min(radius1, radius2) * (width < 400 ? 0.6 : 0.8);
 
         // Draw circles
         const circle1 = svg
@@ -81,26 +99,43 @@ const VennDiagram = ({ lists, results }) => {
           .style("stroke", d3.rgb(colors[1]).darker())
           .style("stroke-width", 2);
 
+        // Responsive font sizes
+        const fontSize = width < 400 ? 10 : width < 600 ? 12 : 14;
+
         // Add labels for the sets
         svg
           .append("text")
           .attr("x", centerX - offset * 1.5)
           .attr("y", centerY - radius1 * 0.7)
           .attr("text-anchor", "middle")
-          .style("font-size", "14px")
+          .style("font-size", `${fontSize}px`)
           .style("font-weight", "bold")
           .style("fill", theme.palette.text.primary)
-          .text(`${list1.name || `List ${list1.id}`} (${count1})`);
+          .text(() => {
+            const name = list1.name || `List ${list1.id}`;
+            // Truncate long names on small screens
+            return width < 400
+              ? (name.length > 10 ? name.substring(0, 8) + "..." : name) +
+                  ` (${count1})`
+              : `${name} (${count1})`;
+          });
 
         svg
           .append("text")
           .attr("x", centerX + offset * 1.5)
           .attr("y", centerY - radius2 * 0.7)
           .attr("text-anchor", "middle")
-          .style("font-size", "14px")
+          .style("font-size", `${fontSize}px`)
           .style("font-weight", "bold")
           .style("fill", theme.palette.text.primary)
-          .text(`${list2.name || `List ${list2.id}`} (${count2})`);
+          .text(() => {
+            const name = list2.name || `List ${list2.id}`;
+            // Truncate long names on small screens
+            return width < 400
+              ? (name.length > 10 ? name.substring(0, 8) + "..." : name) +
+                  ` (${count2})`
+              : `${name} (${count2})`;
+          });
 
         // Add label for the intersection
         svg
@@ -108,7 +143,7 @@ const VennDiagram = ({ lists, results }) => {
           .attr("x", centerX)
           .attr("y", centerY)
           .attr("text-anchor", "middle")
-          .style("font-size", "14px")
+          .style("font-size", `${fontSize}px`)
           .style("font-weight", "bold")
           .style("fill", theme.palette.mode === "dark" ? "#fff" : "#000")
           .text(`Common (${commonCount})`);
@@ -133,7 +168,7 @@ const VennDiagram = ({ lists, results }) => {
           this.parentNode.appendChild(this);
         });
       } else if (lists.length === 3) {
-        // For 3 lists, create a 3-circle Venn diagram
+        // For 3 lists, create a responsive 3-circle Venn diagram
         const list1 = lists[0];
         const list2 = lists[1];
         const list3 = lists[2];
@@ -147,15 +182,22 @@ const VennDiagram = ({ lists, results }) => {
         const count3 = result3 ? result3.uniqueValues.length : 0;
         const commonCount = commonResult ? commonResult.uniqueValues.length : 0;
 
-        // Calculate radii
-        const radius = baseRadius * 0.9;
-        const angle = (2 * Math.PI) / 3;
+        // Adjust radius based on screen size
+        const radius = width < 400 ? baseRadius * 0.7 : baseRadius * 0.9;
 
-        // Calculate positions for a triangle arrangement
+        // Calculate positions for a triangle arrangement - more compact for small screens
+        const distanceFromCenter = width < 400 ? radius * 0.6 : radius * 0.7;
+
         const positions = [
-          { x: centerX, y: centerY - radius * 0.7 }, // top
-          { x: centerX - radius * 0.7, y: centerY + radius * 0.5 }, // bottom left
-          { x: centerX + radius * 0.7, y: centerY + radius * 0.5 }, // bottom right
+          { x: centerX, y: centerY - distanceFromCenter }, // top
+          {
+            x: centerX - distanceFromCenter * Math.cos(Math.PI / 6),
+            y: centerY + distanceFromCenter * Math.sin(Math.PI / 6),
+          }, // bottom left
+          {
+            x: centerX + distanceFromCenter * Math.cos(Math.PI / 6),
+            y: centerY + distanceFromCenter * Math.sin(Math.PI / 6),
+          }, // bottom right
         ];
 
         // Draw circles
@@ -172,24 +214,46 @@ const VennDiagram = ({ lists, results }) => {
             .style("stroke-width", 2);
         });
 
+        // Responsive font sizes
+        const fontSize = width < 400 ? 9 : width < 600 ? 11 : 14;
+
+        // Calculate optimal label positions for each list based on screen size
+        const labelOffsets =
+          width < 400
+            ? [
+                { x: 0, y: -radius * 1.2 }, // top label
+                { x: -radius * 1.2, y: radius * 0.8 }, // bottom left
+                { x: radius * 1.2, y: radius * 0.8 }, // bottom right
+              ]
+            : [
+                { x: 0, y: -radius * 1.1 }, // top label
+                { x: -radius, y: radius * 0.7 }, // bottom left
+                { x: radius, y: radius * 0.7 }, // bottom right
+              ];
+
         // Add labels for each circle
         lists.forEach((list, i) => {
           const pos = positions[i];
+          const offset = labelOffsets[i];
           const result = uniqueResults.find((r) => r.listId === list.id);
           const count = result ? result.uniqueValues.length : 0;
 
           svg
             .append("text")
-            .attr(
-              "x",
-              pos.x + (i === 0 ? 0 : i === 1 ? -radius * 0.8 : radius * 0.8)
-            )
-            .attr("y", pos.y + (i === 0 ? -radius : radius * 0.8))
+            .attr("x", pos.x + offset.x)
+            .attr("y", pos.y + offset.y)
             .attr("text-anchor", "middle")
-            .style("font-size", "14px")
+            .style("font-size", `${fontSize}px`)
             .style("font-weight", "bold")
             .style("fill", theme.palette.text.primary)
-            .text(`${list.name || `List ${list.id}`} (${count})`);
+            .text(() => {
+              const name = list.name || `List ${list.id}`;
+              // Truncate long names on small screens
+              return width < 400
+                ? (name.length > 8 ? name.substring(0, 6) + "..." : name) +
+                    ` (${count})`
+                : `${name} (${count})`;
+            });
         });
 
         // Add label for the center intersection
@@ -198,7 +262,7 @@ const VennDiagram = ({ lists, results }) => {
           .attr("x", centerX)
           .attr("y", centerY)
           .attr("text-anchor", "middle")
-          .style("font-size", "14px")
+          .style("font-size", `${fontSize}px`)
           .style("font-weight", "bold")
           .style("fill", theme.palette.mode === "dark" ? "#fff" : "#000")
           .text(`Common (${commonCount})`);
@@ -224,8 +288,8 @@ const VennDiagram = ({ lists, results }) => {
         });
       } else {
         // For more than 3 lists, create a simplified representation
-        // Draw a center circle with surrounding circles
-        const centerRadius = baseRadius * 0.6;
+        // Draw a center circle with surrounding circles - scale elements for small screens
+        const centerRadius = width < 400 ? baseRadius * 0.4 : baseRadius * 0.6;
 
         // Draw center circle for common items
         svg
@@ -238,24 +302,34 @@ const VennDiagram = ({ lists, results }) => {
           .style("stroke", d3.rgb("#9c9c9c").darker())
           .style("stroke-width", 2);
 
+        // Responsive font size
+        const fontSize = width < 400 ? 10 : width < 600 ? 12 : 14;
+        const smallFontSize = width < 400 ? 8 : width < 600 ? 10 : 12;
+
         svg
           .append("text")
           .attr("x", centerX)
           .attr("y", centerY)
           .attr("text-anchor", "middle")
-          .style("font-size", "14px")
+          .style("font-size", `${fontSize}px`)
           .style("font-weight", "bold")
           .style("fill", theme.palette.mode === "dark" ? "#fff" : "#000")
           .text(
             `Common (${commonResult ? commonResult.uniqueValues.length : 0})`
           );
 
-        // Draw surrounding circles for each list
+        // Draw surrounding circles for each list - adapt for small screens
+        const listCount = lists.length;
+        const radius = width < 400 ? baseRadius * 0.3 : baseRadius * 0.4;
+        const distanceFromCenter =
+          width < 400
+            ? baseRadius * 1.0 + (listCount > 4 ? radius * 0.5 : 0)
+            : baseRadius * 1.2 + (listCount > 4 ? radius * 0.5 : 0);
+
         lists.forEach((list, i) => {
-          const angle = (2 * Math.PI * i) / lists.length;
-          const x = centerX + Math.cos(angle) * baseRadius * 1.2;
-          const y = centerY + Math.sin(angle) * baseRadius * 1.2;
-          const radius = baseRadius * 0.4;
+          const angle = (2 * Math.PI * i) / listCount;
+          const x = centerX + Math.cos(angle) * distanceFromCenter;
+          const y = centerY + Math.sin(angle) * distanceFromCenter;
 
           const result = uniqueResults.find((r) => r.listId === list.id);
           const count = result ? result.uniqueValues.length : 0;
@@ -288,18 +362,28 @@ const VennDiagram = ({ lists, results }) => {
             .attr("x", x)
             .attr("y", y)
             .attr("text-anchor", "middle")
-            .style("font-size", "12px")
+            .style("font-size", `${smallFontSize}px`)
             .style("font-weight", "bold")
             .style("fill", theme.palette.mode === "dark" ? "#fff" : "#000")
-            .text(`${list.name || `List ${list.id}`}`);
+            .text(() => {
+              const name = list.name || `List ${list.id}`;
+              // Truncate long names on small screens
+              return width < 400
+                ? name.length > 6
+                  ? name.substring(0, 4) + "..."
+                  : name
+                : name.length > 12
+                ? name.substring(0, 10) + "..."
+                : name;
+            });
 
           // Add count below name
           svg
             .append("text")
             .attr("x", x)
-            .attr("y", y + 16)
+            .attr("y", y + (width < 400 ? 12 : 16))
             .attr("text-anchor", "middle")
-            .style("font-size", "11px")
+            .style("font-size", `${smallFontSize - 1}px`)
             .style("fill", theme.palette.mode === "dark" ? "#ddd" : "#333")
             .text(`(${count})`);
         });
@@ -325,37 +409,40 @@ const VennDiagram = ({ lists, results }) => {
         });
       }
 
-      // Add legend
-      const legendX = 20;
-      const legendY = height - (lists.length * 25 + 40);
-
-      svg
-        .append("text")
-        .attr("x", legendX)
-        .attr("y", legendY)
-        .style("font-size", "14px")
-        .style("font-weight", "bold")
-        .style("fill", theme.palette.text.primary)
-        .text("Legend:");
-
-      lists.forEach((list, i) => {
-        svg
-          .append("rect")
-          .attr("x", legendX)
-          .attr("y", legendY + 15 + i * 25)
-          .attr("width", 15)
-          .attr("height", 15)
-          .style("fill", colors[i % colors.length])
-          .style("fill-opacity", 0.6);
+      // Add legend - make it more compact on small screens
+      if (width >= 400) {
+        const legendX = 20;
+        const legendY = height - (lists.length * 25 + 40);
+        const legendFontSize = width < 600 ? 11 : 14;
 
         svg
           .append("text")
-          .attr("x", legendX + 25)
-          .attr("y", legendY + 15 + i * 25 + 12)
-          .style("font-size", "12px")
+          .attr("x", legendX)
+          .attr("y", legendY)
+          .style("font-size", `${legendFontSize}px`)
+          .style("font-weight", "bold")
           .style("fill", theme.palette.text.primary)
-          .text(`${list.name || `List ${list.id}`}`);
-      });
+          .text("Legend:");
+
+        lists.forEach((list, i) => {
+          svg
+            .append("rect")
+            .attr("x", legendX)
+            .attr("y", legendY + 15 + i * 25)
+            .attr("width", 15)
+            .attr("height", 15)
+            .style("fill", colors[i % colors.length])
+            .style("fill-opacity", 0.6);
+
+          svg
+            .append("text")
+            .attr("x", legendX + 25)
+            .attr("y", legendY + 15 + i * 25 + 12)
+            .style("font-size", `${legendFontSize - 2}px`)
+            .style("fill", theme.palette.text.primary)
+            .text(list.name || `List ${list.id}`);
+        });
+      }
     } catch (error) {
       console.error("Error creating Venn diagram:", error);
       d3.select(vennRef.current)
@@ -366,7 +453,7 @@ const VennDiagram = ({ lists, results }) => {
         .style("padding", "20px")
         .text(`Couldn't render diagram: ${error.message}`);
     }
-  }, [lists, results, theme]);
+  }, [lists, results, theme, dimensions]);
 
   return (
     <Box
@@ -377,6 +464,7 @@ const VennDiagram = ({ lists, results }) => {
         borderRadius: 1,
         width: "100%",
       }}
+      ref={containerRef}
     >
       <Typography variant="h6" gutterBottom>
         Venn Diagram Visualization
@@ -387,9 +475,9 @@ const VennDiagram = ({ lists, results }) => {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          height: { xs: 300, sm: 400 },
+          minHeight: { xs: 300, sm: 400 },
           width: "100%",
-          overflow: "auto",
+          overflow: "hidden",
         }}
       >
         {lists.length < 2 && (

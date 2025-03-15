@@ -10,6 +10,9 @@ import {
   Typography,
   Chip,
   Paper,
+  useMediaQuery,
+  useTheme,
+  alpha,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
@@ -28,6 +31,10 @@ const ControlPanel = ({
   onClearAll,
   onAddList,
 }) => {
+  const theme = useTheme();
+  const isXsScreen = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMobile = useMediaQuery("(max-width:480px)");
+
   return (
     <Paper
       elevation={1}
@@ -39,18 +46,21 @@ const ControlPanel = ({
       <Box
         sx={{
           display: "flex",
+          flexDirection: isMobile ? "column" : "row",
           flexWrap: "wrap",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: isMobile ? "flex-start" : "center",
           gap: { xs: 2, sm: 3 },
         }}
       >
         <Box
           sx={{
             display: "flex",
+            flexDirection: isMobile ? "column" : "row",
             flexWrap: "wrap",
-            alignItems: "center",
-            gap: 2,
+            alignItems: isMobile ? "flex-start" : "center",
+            gap: isMobile ? 1.5 : 2,
+            width: isMobile ? "100%" : "auto",
           }}
         >
           <Box
@@ -59,11 +69,17 @@ const ControlPanel = ({
               alignItems: "center",
               flexWrap: "wrap",
               gap: 1,
+              width: isMobile ? "100%" : "auto",
             }}
           >
             <FormLabel
               component="legend"
-              sx={{ mr: 1, display: "inline-block" }}
+              sx={{
+                mr: 1,
+                display: "inline-block",
+                whiteSpace: "nowrap",
+                fontSize: isXsScreen ? "0.875rem" : "inherit",
+              }}
             >
               Comparison Mode:
             </FormLabel>
@@ -74,38 +90,28 @@ const ControlPanel = ({
                 handleModeChange(event, newMode, onModeChange)
               }
               aria-label="comparison mode"
-              size="small"
-            >
-              <ToggleButton
-                value="numeric"
-                aria-label="numeric mode"
-                sx={{
+              size={isXsScreen ? "small" : "medium"}
+              sx={{
+                flexGrow: isMobile ? 1 : 0,
+                "& .MuiToggleButton-root": {
+                  color: theme.palette.text.primary,
+                  "&:hover": {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                  },
                   "&.Mui-selected": {
-                    backgroundColor: "#1976d2",
-                    color: "white",
+                    backgroundColor: theme.palette.primary.main,
+                    color: theme.palette.primary.contrastText,
                     "&:hover": {
-                      backgroundColor: "#1565c0",
-                      color: "white",
+                      backgroundColor: theme.palette.primary.dark,
                     },
                   },
-                }}
-              >
+                },
+              }}
+            >
+              <ToggleButton value="numeric" aria-label="numeric mode">
                 Numeric
               </ToggleButton>
-              <ToggleButton
-                value="text"
-                aria-label="text mode"
-                sx={{
-                  "&.Mui-selected": {
-                    backgroundColor: "#1976d2",
-                    color: "white",
-                    "&:hover": {
-                      backgroundColor: "#1565c0",
-                      color: "white",
-                    },
-                  },
-                }}
-              >
+              <ToggleButton value="text" aria-label="text mode">
                 Text
               </ToggleButton>
             </ToggleButtonGroup>
@@ -121,9 +127,17 @@ const ControlPanel = ({
                     handleCaseSensitivityChange(event, onCaseSensitivityChange)
                   }
                   color="primary"
+                  size={isXsScreen ? "small" : "medium"}
                 />
               }
               label="Case sensitive"
+              sx={{
+                mr: 0,
+                flexGrow: isMobile ? 1 : 0,
+                "& .MuiFormControlLabel-label": {
+                  fontSize: isXsScreen ? "0.875rem" : "inherit",
+                },
+              }}
             />
           )}
         </Box>
@@ -131,9 +145,11 @@ const ControlPanel = ({
         <Box
           sx={{
             display: "flex",
+            flexDirection: isMobile ? "column" : "row",
             flexWrap: "wrap",
-            gap: 2,
+            gap: isMobile ? 1.5 : 2,
             alignItems: "flex-start",
+            width: isMobile ? "100%" : "auto",
           }}
         >
           <Button
@@ -142,28 +158,47 @@ const ControlPanel = ({
             startIcon={<DeleteSweepIcon />}
             onClick={onClearAll}
             data-testid="clear-all-button"
-            size="medium"
+            size={isXsScreen ? "small" : "medium"}
+            fullWidth={isMobile}
           >
             Clear All
           </Button>
 
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 1,
+              width: isMobile ? "100%" : "auto",
+            }}
+          >
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => onAddList("Default")}
               disabled={lists.length >= 5}
-              size="medium"
+              size={isXsScreen ? "small" : "medium"}
+              fullWidth={isMobile}
             >
               Add List ({lists.length}/5)
             </Button>
             {categories.length > 1 && (
               <Box
-                sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 0.5,
+                  mt: 0.5,
+                  justifyContent: isMobile ? "flex-start" : "center",
+                }}
               >
                 <Typography
                   variant="caption"
-                  sx={{ mr: 0.5, alignSelf: "center" }}
+                  sx={{
+                    mr: 0.5,
+                    alignSelf: "center",
+                    fontSize: isXsScreen ? "0.7rem" : "0.75rem",
+                  }}
                 >
                   Add to category:
                 </Typography>
