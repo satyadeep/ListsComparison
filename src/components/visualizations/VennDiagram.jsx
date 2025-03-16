@@ -13,12 +13,28 @@ import * as d3 from "d3";
 import { compareSelectedLists } from "../../utils/listUtils";
 
 // Custom tooltip component for showing entries with scrolling support
-const VennTooltip = ({ title, entries, position, onLock, isLocked }) => {
+const VennTooltip = ({
+  title,
+  entries,
+  position,
+  onLock,
+  isLocked,
+  onMouseEnter,
+  onMouseLeave,
+}) => {
   const [isHovered, setIsHovered] = useState(false);
   const theme = useTheme();
   const maxEntriesToShow = 100; // Show more since we have scrolling
   const hasMoreEntries = entries.length > maxEntriesToShow;
   const displayEntries = entries.slice(0, maxEntriesToShow);
+  const tooltipRef = useRef(null);
+
+  // Add focus to the tooltip when it's locked to improve accessibility
+  useEffect(() => {
+    if (isLocked && tooltipRef.current) {
+      tooltipRef.current.focus();
+    }
+  }, [isLocked]);
 
   // Handle click to toggle lock state
   const handleTooltipClick = (e) => {
@@ -30,57 +46,83 @@ const VennTooltip = ({ title, entries, position, onLock, isLocked }) => {
     <Fade in={true}>
       <Paper
         elevation={4}
+        ref={tooltipRef}
         className="venn-tooltip"
+        tabIndex={0} // Make it focusable
         sx={{
           position: "fixed",
-          left: position.x + 15,
-          top: position.y + 10,
+          left: position.x,
+          top: position.y - 20, // Position slightly above cursor
           padding: "12px",
           backgroundColor: theme.palette.background.paper,
           maxWidth: "280px",
           maxHeight: "350px",
           borderRadius: 1,
           boxShadow: 3,
-          pointerEvents: "all", // Enable mouse events for scrolling
+          pointerEvents: "all !important", // Force pointer events
           zIndex: 10000,
           border: isLocked ? `2px solid ${theme.palette.primary.main}` : "none",
           boxShadow: isLocked
             ? `0 0 0 2px ${theme.palette.primary.main}, ${theme.shadows[4]}`
             : theme.shadows[4],
+          outline: "none", // Remove focus outline, we'll use the border instead
+          "&:focus": {
+            boxShadow: `0 0 0 3px ${theme.palette.primary.light}, ${theme.shadows[4]}`,
+          },
+          transition: "all 0.2s ease-in-out",
+          // Ensure it's visually clear when locked
+          transform: isLocked ? "translateY(-2px)" : "none",
         }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        onClick={handleTooltipClick}
+        onMouseEnter={() => {
+          setIsHovered(true);
+          if (onMouseEnter) onMouseEnter();
+        }}
+        onMouseLeave={() => {
+          setIsHovered(false);
+          if (onMouseLeave) onMouseLeave();
+        }}
+        onClick={handleTooltipClick} // Add click handler for locking
       >
-        <Typography variant="subtitle2" sx={{ fontWeight: "bold", mb: 0.5 }}>
-          {title} ({entries.length})
-          {isLocked && (
-            <span
-              style={{
-                fontSize: "0.8rem",
-                marginLeft: "8px",
-                color: theme.palette.text.secondary,
-              }}
-            >
-              (Click to unlock)
-            </span>
-          )}
-          {!isLocked && (
-            <span
-              style={{
-                fontSize: "0.8rem",
-                marginLeft: "8px",
-                color: theme.palette.text.secondary,
-              }}
-            >
-              (Click to lock)
-            </span>
-          )}
-        </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 1,
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
+            {title} ({entries.length})
+          </Typography>
+
+          {/* Add a more visible lock indicator */}
+          <Box
+            sx={{
+              fontSize: "0.75rem",
+              color: isLocked
+                ? theme.palette.primary.main
+                : theme.palette.text.secondary,
+              fontWeight: isLocked ? "bold" : "normal",
+              cursor: "pointer",
+              padding: "2px 8px",
+              borderRadius: 1,
+              backgroundColor: isLocked
+                ? theme.palette.mode === "dark"
+                  ? "rgba(144, 202, 249, 0.15)"
+                  : "rgba(33, 150, 243, 0.1)"
+                : "transparent",
+            }}
+            onClick={handleTooltipClick}
+          >
+            {isLocked ? "🔒 Locked" : "🔓 Click to lock"}
+          </Box>
+        </Box>
+
         <Box
           sx={{
             maxHeight: "300px",
             overflow: "auto",
+            overflowX: "hidden",
             "&::-webkit-scrollbar": {
               width: "8px",
             },
@@ -88,11 +130,21 @@ const VennTooltip = ({ title, entries, position, onLock, isLocked }) => {
               backgroundColor: theme.palette.mode === "dark" ? "#555" : "#ccc",
               borderRadius: "4px",
             },
+            pointerEvents: "auto", // Ensure scrolling works
           }}
         >
           <List dense disablePadding>
             {displayEntries.map((entry, idx) => (
-              <ListItem key={idx} dense sx={{ py: 0.5 }}>
+              <ListItem
+                key={idx}
+                dense
+                sx={{
+                  py: 0.5,
+                  "&:hover": {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
                 <Typography variant="caption" color="textSecondary">
                   {entry}
                 </Typography>
@@ -115,18 +167,19 @@ const VennTooltip = ({ title, entries, position, onLock, isLocked }) => {
 };
 
 // Create a connection bridge element to help with hover transitions
-const TooltipBridge = ({ from, to }) => {
+const TooltipBridge = ({ from, to, onMouseOver }) => {
   const bridgeStyle = {
     position: "fixed",
-    pointerEvents: "none",
-    width: Math.abs(from.x - to.x) + 40,
-    height: Math.abs(from.y - to.y) + 40,
-    left: Math.min(from.x, to.x) - 20,
-    top: Math.min(from.y, to.y) - 20,
+    pointerEvents: "all", // Changed to "all" to intercept mouse events
+    width: Math.abs(from.x - to.x) + 60, // Increased width
+    height: Math.abs(from.y - to.y) + 60, // Increased height
+    left: Math.min(from.x, to.x) - 30, // Adjusted left
+    top: Math.min(from.y, to.y) - 30, // Adjusted top
     zIndex: 9998,
+    background: "transparent", // Make it invisible
   };
 
-  return <div style={bridgeStyle} />;
+  return <div style={bridgeStyle} onMouseOver={onMouseOver} />;
 };
 
 const VennDiagram = ({
@@ -151,6 +204,7 @@ const VennDiagram = ({
   });
   const mousePositionRef = useRef({ x: 0, y: 0 });
   const tooltipTimeoutRef = useRef(null);
+  const [mouseIsOverElement, setMouseIsOverElement] = useState(false);
 
   // Add console logs to debug when the diagram should render
   useEffect(() => {
@@ -320,6 +374,8 @@ const VennDiagram = ({
                   tooltipTimeoutRef.current = null;
                 }
 
+                handleMouseOverElement(true); // Track that mouse is over an element
+
                 const tooltipPos = { x: event.clientX, y: event.clientY };
                 setTooltip({
                   show: true,
@@ -332,6 +388,8 @@ const VennDiagram = ({
               }
             })
             .on("mouseleave", function () {
+              handleMouseOverElement(false); // Track that mouse left the element
+
               if (!tooltip.isLocked) {
                 tooltipTimeoutRef.current = setTimeout(() => {
                   setTooltip((prev) => ({ ...prev, show: false }));
@@ -361,6 +419,8 @@ const VennDiagram = ({
                   tooltipTimeoutRef.current = null;
                 }
 
+                handleMouseOverElement(true); // Track that mouse is over an element
+
                 const tooltipPos = { x: event.clientX, y: event.clientY };
                 setTooltip({
                   show: true,
@@ -373,6 +433,8 @@ const VennDiagram = ({
               }
             })
             .on("mouseleave", function () {
+              handleMouseOverElement(false); // Track that mouse left the element
+
               if (!tooltip.isLocked) {
                 tooltipTimeoutRef.current = setTimeout(() => {
                   setTooltip((prev) => ({ ...prev, show: false }));
@@ -457,6 +519,8 @@ const VennDiagram = ({
                     tooltipTimeoutRef.current = null;
                   }
 
+                  handleMouseOverElement(true); // Track that mouse is over an element
+
                   const tooltipPos = { x: event.clientX, y: event.clientY };
                   setTooltip({
                     show: true,
@@ -471,6 +535,8 @@ const VennDiagram = ({
                 }
               })
               .on("mouseleave", function () {
+                handleMouseOverElement(false); // Track that mouse left the element
+
                 if (!tooltip.isLocked) {
                   tooltipTimeoutRef.current = setTimeout(() => {
                     setTooltip((prev) => ({ ...prev, show: false }));
@@ -1292,15 +1358,71 @@ const VennDiagram = ({
     findIntersectionItems,
   ]);
 
-  // Toggle tooltip lock state
+  // Toggle tooltip lock state with improved handling of unlocking
   const toggleTooltipLock = () => {
-    setTooltip((prev) => ({
-      ...prev,
-      isLocked: !prev.isLocked,
-    }));
+    setTooltip((prev) => {
+      // Determine if we're locking or unlocking
+      const willBeLocked = !prev.isLocked;
+
+      // If locking the tooltip, play a subtle animation
+      if (willBeLocked) {
+        const tooltipEl = document.querySelector(".venn-tooltip");
+        if (tooltipEl) {
+          tooltipEl.animate(
+            [
+              { transform: "scale(1)" },
+              { transform: "scale(1.05)" },
+              { transform: "scale(1)" },
+            ],
+            {
+              duration: 300,
+              easing: "ease-in-out",
+            }
+          );
+        }
+
+        // Return the locked state
+        return {
+          ...prev,
+          isLocked: true,
+        };
+      } else {
+        // If unlocking, check if mouse is over the element
+        if (!mouseIsOverElement) {
+          // If mouse is not over the element, hide the tooltip
+          return {
+            ...prev,
+            isLocked: false,
+            show: false, // Hide the tooltip when unlocked and not hovering
+          };
+        } else {
+          // If mouse is still over the element, keep showing the tooltip, but unlock it
+          return {
+            ...prev,
+            isLocked: false,
+          };
+        }
+      }
+    });
   };
 
-  // Handle document click to close locked tooltip when clicked outside
+  // Track mouse over element state
+  const handleMouseOverElement = (isOver) => {
+    setMouseIsOverElement(isOver);
+
+    // If tooltip is showing but not locked, and mouse moves away, hide tooltip
+    if (!isOver && tooltip.show && !tooltip.isLocked) {
+      tooltipTimeoutRef.current = setTimeout(() => {
+        setTooltip((prev) => ({ ...prev, show: false }));
+      }, 500);
+    } else if (isOver && tooltipTimeoutRef.current) {
+      // If mouse moves over the element, clear any pending hide timeout
+      clearTimeout(tooltipTimeoutRef.current);
+      tooltipTimeoutRef.current = null;
+    }
+  };
+
+  // Improve the document click handler to also handle outside clicks better
   useEffect(() => {
     const handleDocumentClick = (e) => {
       if (tooltip.show && tooltip.isLocked) {
@@ -1361,15 +1483,24 @@ const VennDiagram = ({
         }}
       >
         {lists.length < 2 && (
-          <Typography variant="body1" color="text.secondary">
-            At least two lists are required for a Venn diagram visualization
-          </Typography>
+          <Typography variant="body1" color="text.secondary"></Typography>
+          // At least two lists are required for a Venn diagram visualization
         )}
       </Box>
 
       {/* Create a visual connection between the source and tooltip */}
       {showTooltips && tooltip.show && tooltip.sourcePosition && (
-        <TooltipBridge from={tooltip.sourcePosition} to={tooltip.position} />
+        <TooltipBridge
+          from={tooltip.sourcePosition}
+          to={tooltip.position}
+          onMouseOver={() => {
+            // Clear any pending timeout when mouse is over the bridge
+            if (tooltipTimeoutRef.current) {
+              clearTimeout(tooltipTimeoutRef.current);
+              tooltipTimeoutRef.current = null;
+            }
+          }}
+        />
       )}
 
       {/* Show tooltip when active */}
@@ -1380,6 +1511,8 @@ const VennDiagram = ({
           position={tooltip.position}
           isLocked={tooltip.isLocked}
           onLock={toggleTooltipLock}
+          onMouseEnter={() => handleMouseOverElement(true)}
+          onMouseLeave={() => handleMouseOverElement(false)}
           className="venn-tooltip"
         />
       )}
