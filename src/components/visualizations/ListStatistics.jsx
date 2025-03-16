@@ -6,6 +6,8 @@ import {
   Grid,
   Paper,
   useMediaQuery,
+  List,
+  ListItem,
 } from "@mui/material";
 import {
   PieChart,
@@ -21,10 +23,204 @@ import {
   CartesianGrid,
 } from "recharts";
 
-const ListStatistics = ({ lists, results }) => {
+// Custom tooltip for pie chart to show actual entries
+const CustomPieTooltip = ({ active, payload, itemMap, showTooltips }) => {
+  // If tooltips are disabled, return null
+  if (!showTooltips) return null;
+
+  if (active && payload && payload.length && itemMap) {
+    const data = payload[0];
+    const listId = data.payload.listId;
+    const entries = itemMap[listId] || [];
+
+    const maxEntriesToShow = 20;
+    const hasMoreEntries = entries.length > maxEntriesToShow;
+    const displayEntries = entries.slice(0, maxEntriesToShow);
+
+    return (
+      <Paper
+        elevation={3}
+        sx={{
+          padding: "10px",
+          backgroundColor: "background.paper",
+          maxWidth: "250px",
+          maxHeight: "300px",
+          overflow: "hidden",
+        }}
+      >
+        <Typography variant="subtitle2" color="textPrimary">
+          {data.name}: {data.value} items
+        </Typography>
+        <Box sx={{ mt: 1, maxHeight: "200px", overflow: "auto" }}>
+          <List dense disablePadding>
+            {displayEntries.map((item, index) => (
+              <ListItem key={index} dense sx={{ py: 0.5 }}>
+                <Typography variant="caption" color="textSecondary">
+                  {item}
+                </Typography>
+              </ListItem>
+            ))}
+          </List>
+          {hasMoreEntries && (
+            <Typography
+              variant="caption"
+              color="textSecondary"
+              sx={{ mt: 1, fontStyle: "italic", display: "block" }}
+            >
+              And {entries.length - maxEntriesToShow} more items...
+            </Typography>
+          )}
+        </Box>
+      </Paper>
+    );
+  }
+  return null;
+};
+
+// Custom tooltip for bar chart to show actual entries
+const CustomBarTooltip = ({
+  active,
+  payload,
+  itemMap,
+  commonItems,
+  showTooltips,
+}) => {
+  // If tooltips are disabled, return null
+  if (!showTooltips) return null;
+
+  if (active && payload && payload.length && itemMap) {
+    const listId = payload[0]?.payload?.listId;
+    if (!listId || !itemMap[listId]) return null;
+
+    const totalItems =
+      payload.find((p) => p.name === "Total Items")?.value || 0;
+    const uniqueItems =
+      payload.find((p) => p.name === "Unique Items")?.value || 0;
+    const commonItemsCount =
+      payload.find((p) => p.name === "Common Items")?.value || 0;
+
+    const entries = itemMap[listId] || [];
+    const commonEntriesList = commonItems || [];
+
+    const maxEntriesToShow = 12;
+    const hasMoreEntries = entries.length > maxEntriesToShow;
+    const displayEntries = entries.slice(0, maxEntriesToShow);
+
+    const hasMoreCommonEntries = commonEntriesList.length > maxEntriesToShow;
+    const displayCommonEntries = commonEntriesList.slice(0, maxEntriesToShow);
+
+    return (
+      <Paper
+        elevation={3}
+        sx={{
+          padding: "10px",
+          backgroundColor: "background.paper",
+          maxWidth: "250px",
+          maxHeight: "350px",
+          overflow: "hidden",
+        }}
+      >
+        <Typography variant="subtitle2" color="textPrimary">
+          {payload[0].payload.name}
+        </Typography>
+        <Typography
+          variant="caption"
+          color="textSecondary"
+          sx={{ display: "block", mb: 1 }}
+        >
+          Total Items: {totalItems} | Unique Items: {uniqueItems} | Common
+          Items: {commonItemsCount}
+        </Typography>
+
+        <Box sx={{ mt: 1, maxHeight: "300px", overflow: "auto" }}>
+          {/* Unique items section */}
+          <Typography
+            variant="caption"
+            sx={{ fontWeight: "bold", display: "block" }}
+          >
+            Unique items:
+          </Typography>
+          <List dense disablePadding>
+            {displayEntries.map((item, index) => (
+              <ListItem key={index} dense sx={{ py: 0.5 }}>
+                <Typography variant="caption" color="textSecondary">
+                  {item}
+                </Typography>
+              </ListItem>
+            ))}
+          </List>
+          {hasMoreEntries && (
+            <Typography
+              variant="caption"
+              color="textSecondary"
+              sx={{ fontStyle: "italic", display: "block" }}
+            >
+              And {entries.length - maxEntriesToShow} more unique items...
+            </Typography>
+          )}
+
+          {/* Common items section */}
+          {commonEntriesList.length > 0 && (
+            <>
+              <Typography
+                variant="caption"
+                sx={{ fontWeight: "bold", display: "block", mt: 1 }}
+              >
+                Common items:
+              </Typography>
+              <List dense disablePadding>
+                {displayCommonEntries.map((item, index) => (
+                  <ListItem key={`common-${index}`} dense sx={{ py: 0.5 }}>
+                    <Typography variant="caption" color="textSecondary">
+                      {item}
+                    </Typography>
+                  </ListItem>
+                ))}
+              </List>
+              {hasMoreCommonEntries && (
+                <Typography
+                  variant="caption"
+                  color="textSecondary"
+                  sx={{ fontStyle: "italic", display: "block" }}
+                >
+                  And {commonEntriesList.length - maxEntriesToShow} more common
+                  items...
+                </Typography>
+              )}
+            </>
+          )}
+        </Box>
+      </Paper>
+    );
+  }
+  return null;
+};
+
+const ListStatistics = ({ lists, results, showTooltips = true }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isExtraSmall = useMediaQuery("(max-width:400px)");
+
+  // Get common items
+  const commonItems = useMemo(() => {
+    const commonResult = results.find((result) => result.listId === "common");
+    return commonResult ? commonResult.uniqueValues : [];
+  }, [results]);
+
+  // Create a map of list IDs to their unique values for tooltips
+  const itemMap = useMemo(() => {
+    const map = {};
+
+    // Add unique values for each list
+    results.forEach((result) => {
+      // Skip the common result as we handle it separately
+      if (result.listId !== "common") {
+        map[result.listId] = result.uniqueValues;
+      }
+    });
+
+    return map;
+  }, [results]);
 
   // Prepare data for charts
   const chartData = useMemo(() => {
@@ -52,7 +248,7 @@ const ListStatistics = ({ lists, results }) => {
       });
     }
 
-    // Data for bar chart - compare list sizes and unique items
+    // Data for bar chart - compare list sizes, unique items, and common items
     const barData = lists.map((list) => {
       const result = results.find((r) => r.listId === list.id);
       const items = list.content
@@ -62,6 +258,7 @@ const ListStatistics = ({ lists, results }) => {
         name: list.name || `List ${list.id}`,
         "Total Items": items.length,
         "Unique Items": result ? result.uniqueValues.length : 0,
+        "Common Items": commonResult ? commonResult.uniqueValues.length : 0,
         listId: list.id,
       };
     });
@@ -169,11 +366,17 @@ const ListStatistics = ({ lists, results }) => {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value, name) => [`${value} items`, name]}
-                    contentStyle={{
-                      background: theme.palette.background.paper,
-                      border: `1px solid ${theme.palette.divider}`,
-                    }}
+                    content={
+                      showTooltips
+                        ? (props) => (
+                            <CustomPieTooltip
+                              {...props}
+                              itemMap={itemMap}
+                              showTooltips={showTooltips}
+                            />
+                          )
+                        : undefined
+                    }
                   />
                   {/* Move legend below the chart on mobile */}
                   <Legend
@@ -195,7 +398,7 @@ const ListStatistics = ({ lists, results }) => {
             sx={{ p: { xs: 1, sm: 2 }, height: "100%", width: "100%" }}
           >
             <Typography variant="subtitle1" align="center" gutterBottom>
-              List Comparison: Total vs. Unique Items
+              List Items Breakdown
             </Typography>
             <Box sx={{ width: "100%", height: { xs: 250, sm: 300 } }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -219,11 +422,18 @@ const ListStatistics = ({ lists, results }) => {
                   />
                   <YAxis tick={{ fontSize: isExtraSmall ? 10 : 12 }} />
                   <Tooltip
-                    contentStyle={{
-                      background: theme.palette.background.paper,
-                      border: `1px solid ${theme.palette.divider}`,
-                      fontSize: isExtraSmall ? 10 : 12,
-                    }}
+                    content={
+                      showTooltips
+                        ? (props) => (
+                            <CustomBarTooltip
+                              {...props}
+                              itemMap={itemMap}
+                              commonItems={commonItems}
+                              showTooltips={showTooltips}
+                            />
+                          )
+                        : undefined
+                    }
                   />
                   <Legend
                     wrapperStyle={{ paddingTop: 10 }}
@@ -231,6 +441,8 @@ const ListStatistics = ({ lists, results }) => {
                   />
                   <Bar dataKey="Total Items" fill="#8884d8" />
                   <Bar dataKey="Unique Items" fill="#82ca9d" />
+                  <Bar dataKey="Common Items" fill="#ff8042" />{" "}
+                  {/* New bar for common items */}
                 </BarChart>
               </ResponsiveContainer>
             </Box>

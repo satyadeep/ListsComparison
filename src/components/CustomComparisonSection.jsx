@@ -14,6 +14,7 @@ import {
   IconButton,
   Tooltip,
   useTheme,
+  OutlinedInput,
 } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
@@ -100,14 +101,22 @@ const CustomComparisonSection = ({
       <Divider sx={{ mb: 4 }} />
 
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 3 }}>
-        {/* List selection */}
+        {/* List selection with fixed outline issue */}
         <FormControl sx={{ minWidth: 200, flexGrow: 1 }}>
-          <InputLabel id="list-select-label">
+          <InputLabel
+            id="list-select-label"
+            sx={{
+              // Ensure label is above the outline
+              // backgroundColor: theme.palette.background.paper,
+              px: 0.5,
+            }}
+          >
             Select Lists to Compare
           </InputLabel>
           <Select
             labelId="list-select-label"
             multiple
+            input={<OutlinedInput label="Select Lists to Compare" />}
             value={selectedLists}
             onChange={(e) => setSelectedLists(e.target.value)}
             renderValue={(selected) =>
@@ -118,7 +127,12 @@ const CustomComparisonSection = ({
                 })
                 .join(", ")
             }
-            sx={{ minHeight: 56 }}
+            sx={{
+              minHeight: 56,
+              "& .MuiSelect-select": {
+                pt: selectedLists.length > 0 ? 2 : 1.5,
+              },
+            }}
           >
             {lists.map((list) => (
               <MenuItem key={list.id} value={list.id}>

@@ -275,7 +275,7 @@ function AppContent() {
     }
   }, []);
 
-  // Enhanced copyToClipboard function that provides feedback
+  // Enhanced copyToClipboard function that provides feedback with auto-close
   const handleCopyToClipboard = useCallback((content) => {
     copyToClipboard(content, (message, severity) => {
       setNotification({
@@ -283,6 +283,11 @@ function AppContent() {
         message,
         severity,
       });
+
+      // Auto-close after 3 seconds (optional, if you want to force close beyond Snackbar's autoHideDuration)
+      // setTimeout(() => {
+      //   setNotification(prev => ({ ...prev, open: false }));
+      // }, 3000);
     });
   }, []);
 
@@ -685,9 +690,14 @@ function AppContent() {
   );
 
   // Handle closing the notification
-  const handleCloseNotification = () => {
-    setNotification({ ...notification, open: false });
-  };
+  const handleCloseNotification = useCallback((event, reason) => {
+    if (reason === "clickaway") return;
+
+    setNotification((prev) => ({
+      ...prev,
+      open: false,
+    }));
+  }, []);
 
   // Create a handler for clearing all lists
   const handleClearAll = useCallback(() => {
@@ -843,7 +853,7 @@ function AppContent() {
           onCopyToClipboard={handleCopyToClipboard}
         />
 
-        {/* Add new Visualization Section */}
+        {/* Use updated VisualizationSection */}
         {results.length > 0 && (
           <VisualizationSection lists={lists} results={results} />
         )}
@@ -853,12 +863,12 @@ function AppContent() {
 
       <Snackbar
         open={notification.open}
-        autoHideDuration={5000}
-        onClose={closeNotification}
+        autoHideDuration={3000}
+        onClose={handleCloseNotification}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
-          onClose={closeNotification}
+          onClose={handleCloseNotification}
           severity={notification.severity}
           sx={{ width: "100%" }}
         >
