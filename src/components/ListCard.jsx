@@ -26,6 +26,7 @@ import TextFieldsIcon from "@mui/icons-material/TextFields";
 import FormatColorTextIcon from "@mui/icons-material/FormatColorText";
 import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
 import TableViewIcon from "@mui/icons-material/TableView"; // New icon for Excel/CSV import
+import ContentCutIcon from "@mui/icons-material/ContentCut"; // Added for trim spaces functionality
 import {
   getListItemCount,
   getDuplicatesCount,
@@ -56,7 +57,8 @@ const ListCard = ({
   getListContent,
   canRemove,
   setLists,
-  allLists, // Make sure this prop is passed
+  allLists,
+  onTrimSpaces = null, // Add with default value of null
 }) => {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
@@ -88,6 +90,22 @@ const ListCard = ({
     getListColor(list.id, allLists || [], "border", isDarkMode);
   const getBackgroundColor = () =>
     getListColor(list.id, allLists || [], "background", isDarkMode);
+
+  // Add a trim spaces handler that works even if the prop isn't provided
+  const handleTrimSpaces = () => {
+    if (typeof onTrimSpaces === "function") {
+      onTrimSpaces(list.id);
+    } else {
+      // Fallback implementation if prop isn't provided
+      const trimmedContent = list.content
+        .split(/[\n,]+/)
+        .map((item) => item.trim())
+        .filter((item) => item !== "")
+        .join("\n");
+
+      onInputChange(list.id, trimmedContent);
+    }
+  };
 
   return (
     <Paper
@@ -270,8 +288,17 @@ const ListCard = ({
         }}
       >
         <Box>
-          <Tooltip title="Trim spaces & remove duplicates">
-            <IconButton size="small" onClick={() => onTrimDuplicates(list.id)}>
+          <Tooltip title="Trim spaces">
+            <IconButton size="small" onClick={handleTrimSpaces}>
+              <ContentCutIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Remove duplicates">
+            <IconButton
+              size="small"
+              onClick={() => onTrimDuplicates(list.id)}
+              sx={{ ml: 1 }}
+            >
               <PlaylistRemoveIcon fontSize="small" />
             </IconButton>
           </Tooltip>
