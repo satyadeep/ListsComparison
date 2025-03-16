@@ -339,6 +339,13 @@ function AppContent() {
 
       // Update state with the loaded configuration
       setLists(data.lists || []);
+
+      // Calculate the next ID by finding the maximum ID in loaded lists and adding 1
+      if (data.lists && data.lists.length > 0) {
+        const maxId = Math.max(...data.lists.map((list) => parseInt(list.id)));
+        setNextId(maxId + 1);
+      }
+
       setCompareMode(data.compareMode || "text");
       setComparisonType(data.comparisonType || "union");
       setCaseSensitive(data.caseSensitive || false);
@@ -363,14 +370,14 @@ function AppContent() {
         setCategories(extractedCategories);
       }
 
-      // Update immediateInputs with the loaded list content
+      // Update immediateInputs with the loaded list content - clear any existing inputs first
       const inputs = {};
       if (data.lists && Array.isArray(data.lists)) {
         data.lists.forEach((list) => {
           inputs[list.id] = list.content || "";
         });
       }
-      setImmediateInputs(inputs);
+      setImmediateInputs(inputs); // This replaces the entire immediateInputs object
 
       // Show success notification
       if (typeof showNotification === "function") {

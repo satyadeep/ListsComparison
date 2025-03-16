@@ -608,7 +608,7 @@ export const getListColor = (
     colorArray = isDarkMode ? listColorsBgDark : listColorsBg;
   }
 
-  // If list is found, return the corresponding color from the array
+  // If list is found, return the corresponding color based on its POSITION in the array
   // Use modulo to cycle through colors if there are more lists than colors
   if (index !== -1) {
     return colorArray[index % colorArray.length];
