@@ -853,9 +853,14 @@ function AppContent() {
           onCopyToClipboard={handleCopyToClipboard}
         />
 
-        {/* Use updated VisualizationSection */}
+        {/* Update VisualizationSection to pass compareMode and caseSensitive */}
         {results.length > 0 && (
-          <VisualizationSection lists={lists} results={results} />
+          <VisualizationSection
+            lists={lists}
+            results={results}
+            compareMode={compareMode}
+            caseSensitive={caseSensitive}
+          />
         )}
 
         <Footer />

@@ -13,7 +13,13 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import VennDiagram from "./VennDiagram";
 import ListStatistics from "./ListStatistics";
 
-const VisualizationSection = ({ lists, results }) => {
+// Update the component to accept compareMode and caseSensitive props
+const VisualizationSection = ({
+  lists,
+  results,
+  compareMode = "text",
+  caseSensitive = false,
+}) => {
   const [showTooltips, setShowTooltips] = useState(true);
   const theme = useTheme();
 
@@ -61,14 +67,14 @@ const VisualizationSection = ({ lists, results }) => {
         />
       </Paper>
 
-      {/* Venn Diagram */}
-      {lists.length >= 2 && (
-        <VennDiagram
-          lists={lists}
-          results={results}
-          showTooltips={showTooltips}
-        />
-      )}
+      {/* Pass compareMode and caseSensitive to VennDiagram */}
+      <VennDiagram
+        lists={lists}
+        results={results}
+        showTooltips={showTooltips}
+        compareMode={compareMode}
+        caseSensitive={caseSensitive}
+      />
 
       {/* Statistics Charts */}
       <ListStatistics

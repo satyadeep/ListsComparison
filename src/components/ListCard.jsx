@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Paper,
   Typography,
@@ -27,6 +27,7 @@ import FormatColorTextIcon from "@mui/icons-material/FormatColorText";
 import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
 import TableViewIcon from "@mui/icons-material/TableView"; // New icon for Excel/CSV import
 import ContentCutIcon from "@mui/icons-material/ContentCut"; // Added for trim spaces functionality
+import DragHandleIcon from "@mui/icons-material/DragHandle"; // Import drag handle icon
 import {
   getListItemCount,
   getDuplicatesCount,
@@ -72,6 +73,10 @@ const ListCard = ({
   const filteredItemCount = hasActiveFilter
     ? getListItemCount(getListContent(list.id), compareMode, caseSensitive)
     : originalItemCount;
+  const [textFieldHeight, setTextFieldHeight] = useState(6); // Default rows value
+  const [isResizing, setIsResizing] = useState(false);
+  const startYRef = useRef(0);
+  const startHeightRef = useRef(textFieldHeight);
 
   const handleOpenImportDialog = () => {
     setImportDialogOpen(true);
@@ -107,6 +112,53 @@ const ListCard = ({
     }
   };
 
+  // Add a handler for removing duplicates without trimming spaces
+  const handleRemoveDuplicatesOnly = () => {
+    // Implementation that only removes duplicates and preserves all spaces
+    const lines = list.content.split("\n");
+    const uniqueLines = [];
+    const seen = new Set();
+
+    for (const line of lines) {
+      // Compare items using the same case sensitivity
+      const compareLine = caseSensitive ? line : line.toLowerCase();
+
+      if (!seen.has(compareLine)) {
+        seen.add(compareLine);
+        uniqueLines.push(line); // Keep original with spaces intact
+      }
+    }
+
+    onInputChange(list.id, uniqueLines.join("\n"));
+  };
+
+  // Resize handlers
+  const handleResizeStart = (e) => {
+    e.preventDefault();
+    setIsResizing(true);
+    startYRef.current = e.clientY;
+    startHeightRef.current = textFieldHeight;
+
+    // Add event listeners to window
+    window.addEventListener("mousemove", handleResizeMove);
+    window.addEventListener("mouseup", handleResizeEnd);
+  };
+
+  const handleResizeMove = (e) => {
+    if (!isResizing) return;
+
+    const yDiff = (e.clientY - startYRef.current) / 24; // Approximately one row height
+    const newHeight = Math.max(3, Math.round(startHeightRef.current + yDiff)); // Minimum 3 rows
+
+    setTextFieldHeight(newHeight);
+  };
+
+  const handleResizeEnd = () => {
+    setIsResizing(false);
+    window.removeEventListener("mousemove", handleResizeMove);
+    window.removeEventListener("mouseup", handleResizeEnd);
+  };
+
   return (
     <Paper
       elevation={3}
@@ -116,6 +168,7 @@ const ListCard = ({
         borderLeft: `4px solid ${getBorderColor()}`,
         width: "100%",
         color: theme.palette.text.primary,
+        position: "relative", // Added for absolute positioning of resize handle
       }}
     >
       <Box
@@ -242,40 +295,67 @@ const ListCard = ({
         </Alert>
       )}
 
-      {/* Text field for list content */}
-      <TextField
-        fullWidth
-        multiline
-        rows={6}
-        placeholder={
-          compareMode === "numeric"
-            ? "Enter numbers separated by commas or new lines"
-            : "Enter text items separated by commas or new lines"
-        }
-        value={immediateInput !== undefined ? immediateInput : list.content}
-        onChange={(e) => onInputChange(list.id, e.target.value)}
-        onPaste={(e) => {
-          setTimeout(() => {
-            onInputChange(list.id, e.target.value);
-          }, 10);
-        }}
-        variant="outlined"
-        sx={{
-          "& .MuiOutlinedInput-root": {
-            "& .MuiOutlinedInput-notchedOutline": {
-              borderColor: getBorderColor(),
-              borderWidth: 2,
+      {/* Text field for list content with resize handle */}
+      <Box sx={{ position: "relative" }}>
+        <TextField
+          fullWidth
+          multiline
+          rows={textFieldHeight}
+          placeholder={
+            compareMode === "numeric"
+              ? "Enter numbers separated by commas or new lines"
+              : "Enter text items separated by commas or new lines"
+          }
+          value={immediateInput !== undefined ? immediateInput : list.content}
+          onChange={(e) => onInputChange(list.id, e.target.value)}
+          onPaste={(e) => {
+            setTimeout(() => {
+              onInputChange(list.id, e.target.value);
+            }, 10);
+          }}
+          variant="outlined"
+          sx={{
+            "& .MuiOutlinedInput-root": {
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: getBorderColor(),
+                borderWidth: 2,
+              },
+              "&:hover .MuiOutlinedInput-notchedOutline": {
+                borderColor: getBorderColor(),
+              },
+              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                borderColor: getBorderColor(),
+              },
+              backgroundColor: isDarkMode
+                ? "rgba(255, 255, 255, 0.05)"
+                : "white",
             },
-            "&:hover .MuiOutlinedInput-notchedOutline": {
-              borderColor: getBorderColor(),
+          }}
+        />
+
+        {/* Resize handle */}
+        <Box
+          sx={{
+            position: "absolute",
+            bottom: 2,
+            right: 2,
+            cursor: "ns-resize",
+            color: getBorderColor(),
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 24,
+            height: 24,
+            opacity: 0.7,
+            "&:hover": {
+              opacity: 1,
             },
-            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-              borderColor: getBorderColor(),
-            },
-            backgroundColor: isDarkMode ? "rgba(255, 255, 255, 0.05)" : "white",
-          },
-        }}
-      />
+          }}
+          onMouseDown={handleResizeStart}
+        >
+          <DragHandleIcon />
+        </Box>
+      </Box>
 
       {/* Action buttons */}
       <Box
@@ -296,7 +376,7 @@ const ListCard = ({
           <Tooltip title="Remove duplicates">
             <IconButton
               size="small"
-              onClick={() => onTrimDuplicates(list.id)}
+              onClick={handleRemoveDuplicatesOnly}
               sx={{ ml: 1 }}
             >
               <PlaylistRemoveIcon fontSize="small" />

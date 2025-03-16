@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
@@ -26,14 +26,82 @@ import {
 // Custom tooltip for pie chart to show actual entries with scrolling support
 const CustomPieTooltip = ({ active, payload, itemMap, showTooltips }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [tooltipLocked, setTooltipLocked] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const tooltipRef = useRef(null);
   const theme = useTheme();
+  const timeoutRef = useRef(null);
+
+  // When the tooltip becomes active, store its position from the mouse event
+  useEffect(() => {
+    if (!showTooltips) return;
+
+    const handleMouseMove = (event) => {
+      if (active && payload && payload.length && !isHovered && !tooltipLocked) {
+        setTooltipPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, [active, payload, isHovered, tooltipLocked, showTooltips]);
+
+  // Clear any hide timeouts when hovering
+  useEffect(() => {
+    if (!showTooltips) return;
+
+    if (isHovered && timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [isHovered, showTooltips]);
 
   // If tooltips are disabled, return null
   if (!showTooltips) return null;
 
-  if ((active || isHovered) && payload && payload.length && itemMap) {
+  // Show tooltip when: chart segment is active OR tooltip itself is hovered OR tooltip is locked
+  const shouldShowTooltip =
+    (active || isHovered || tooltipLocked) &&
+    payload &&
+    payload.length &&
+    itemMap;
+
+  if (shouldShowTooltip) {
     const data = payload[0];
-    const listId = data?.payload?.listId;
+
+    // More robust listId extraction - first try payload.listId, then name mapping
+    let listId = data?.payload?.listId;
+
+    // If listId is not directly available, try to find it by name
+    if (!listId && data?.name) {
+      if (data.name === "Common Items") {
+        listId = "common";
+      } else {
+        // Try to extract list name or id from the payload
+        const matchName = Object.keys(itemMap).find((id) => {
+          const list = itemMap[id];
+          // Compare list length with the value in the chart
+          return list && list.length === data.value;
+        });
+        if (matchName) listId = matchName;
+      }
+    }
+
+    // Debug what's in the payload
+    console.log("Pie tooltip payload:", {
+      name: data.name,
+      value: data.value,
+      payload: data.payload,
+      listId: listId,
+      hasItemMap: !!itemMap,
+      itemMapKeys: itemMap ? Object.keys(itemMap) : [],
+    });
+
     if (!listId) return null;
 
     const entries = itemMap[listId] || [];
@@ -42,21 +110,74 @@ const CustomPieTooltip = ({ active, payload, itemMap, showTooltips }) => {
     const hasMoreEntries = entries.length > maxEntriesToShow;
     const displayEntries = entries.slice(0, maxEntriesToShow);
 
+    // Handle click on tooltip to lock/unlock it
+    const handleTooltipClick = (e) => {
+      e.stopPropagation(); // Stop propagation to prevent chart click
+      setTooltipLocked(!tooltipLocked);
+    };
+
+    // Handle delayed hiding for smoother experience
+    const handleMouseLeave = () => {
+      // Use a short timeout to prevent immediate hiding
+      timeoutRef.current = setTimeout(() => {
+        if (!tooltipLocked) setIsHovered(false);
+      }, 300);
+    };
+
+    // Prevent hiding when entering tooltip content
+    const handleMouseEnter = () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      setIsHovered(true);
+    };
+
     return (
       <Paper
         elevation={4}
+        ref={tooltipRef}
         sx={{
+          position: "fixed", // Fixed position instead of absolute
+          left: tooltipPosition.x + 15,
+          top: tooltipPosition.y - 15,
           padding: "12px",
           backgroundColor: theme.palette.background.paper,
           maxWidth: "280px",
           zIndex: 9999,
-          pointerEvents: "auto", // Enable mouse events for scrolling
+          pointerEvents: "all", // Enable mouse events for scrolling
+          border: tooltipLocked
+            ? `2px solid ${theme.palette.primary.main}`
+            : "none",
+          boxShadow: tooltipLocked
+            ? `0 0 0 2px ${theme.palette.primary.main}, ${theme.shadows[4]}`
+            : theme.shadows[4],
         }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleTooltipClick}
       >
         <Typography variant="subtitle2" color="textPrimary">
           {data.name}: {data.value} items
+          {tooltipLocked && (
+            <span
+              style={{
+                fontSize: "0.8rem",
+                marginLeft: "8px",
+                color: theme.palette.text.secondary,
+              }}
+            >
+              (Click to unlock)
+            </span>
+          )}
+          {!tooltipLocked && (
+            <span
+              style={{
+                fontSize: "0.8rem",
+                marginLeft: "8px",
+                color: theme.palette.text.secondary,
+              }}
+            >
+              (Click to lock)
+            </span>
+          )}
         </Typography>
         <Box
           sx={{
@@ -106,12 +227,20 @@ const CustomBarTooltip = ({
   showTooltips,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [tooltipLocked, setTooltipLocked] = useState(false);
   const theme = useTheme();
 
   // If tooltips are disabled, return null
   if (!showTooltips) return null;
 
-  if ((active || isHovered) && payload && payload.length && itemMap) {
+  // Show tooltip when: chart segment is active OR tooltip itself is hovered OR tooltip is locked
+  const shouldShowTooltip =
+    (active || isHovered || tooltipLocked) &&
+    payload &&
+    payload.length &&
+    itemMap;
+
+  if (shouldShowTooltip) {
     const listId = payload[0]?.payload?.listId;
     if (!listId || !itemMap[listId]) return null;
 
@@ -127,21 +256,57 @@ const CustomBarTooltip = ({
 
     const maxEntriesToShow = 100; // Show more since we have scrolling
 
+    // Handle click on tooltip to lock/unlock it
+    const handleTooltipClick = (e) => {
+      e.stopPropagation(); // Stop propagation to prevent chart click
+      setTooltipLocked(!tooltipLocked);
+    };
+
     return (
       <Paper
         elevation={4}
         sx={{
+          position: "absolute", // Fixed position
           padding: "12px",
           backgroundColor: theme.palette.background.paper,
           maxWidth: "280px",
           zIndex: 9999,
           pointerEvents: "auto", // Enable mouse events for scrolling
+          border: tooltipLocked
+            ? `2px solid ${theme.palette.primary.main}`
+            : "none",
+          boxShadow: tooltipLocked
+            ? `0 0 0 2px ${theme.palette.primary.main}, ${theme.shadows[4]}`
+            : theme.shadows[4],
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        onClick={handleTooltipClick}
       >
         <Typography variant="subtitle2" color="textPrimary">
           {payload[0].payload.name}
+          {tooltipLocked && (
+            <span
+              style={{
+                fontSize: "0.8rem",
+                marginLeft: "8px",
+                color: theme.palette.text.secondary,
+              }}
+            >
+              (Click to unlock)
+            </span>
+          )}
+          {!tooltipLocked && (
+            <span
+              style={{
+                fontSize: "0.8rem",
+                marginLeft: "8px",
+                color: theme.palette.text.secondary,
+              }}
+            >
+              (Click to lock)
+            </span>
+          )}
         </Typography>
         <Typography
           variant="caption"
@@ -248,10 +413,8 @@ const ListStatistics = ({ lists, results, showTooltips = true }) => {
 
     // Add unique values for each list
     results.forEach((result) => {
-      // Skip the common result as we handle it separately
-      if (result.listId !== "common") {
-        map[result.listId] = result.uniqueValues;
-      }
+      // Include all results, including common items
+      map[result.listId] = result.uniqueValues;
     });
 
     return map;
@@ -269,7 +432,7 @@ const ListStatistics = ({ lists, results, showTooltips = true }) => {
         return {
           name: list ? list.name || `List ${list.id}` : `List ${result.listId}`,
           value: result.uniqueValues.length,
-          listId: result.listId,
+          listId: result.listId, // Ensure listId is explicitly set
         };
       });
 
@@ -279,7 +442,7 @@ const ListStatistics = ({ lists, results, showTooltips = true }) => {
       pieData.push({
         name: "Common Items",
         value: commonResult.uniqueValues.length,
-        listId: "common",
+        listId: "common", // Explicitly set listId for common items
       });
     }
 
@@ -412,6 +575,8 @@ const ListStatistics = ({ lists, results, showTooltips = true }) => {
                           )
                         : undefined
                     }
+                    wrapperStyle={{ zIndex: 9990, pointerEvents: "all" }} // Increase z-index and enable pointer events
+                    cursor={{ fill: "transparent" }}
                   />
                   {/* Move legend below the chart on mobile */}
                   <Legend
@@ -469,6 +634,8 @@ const ListStatistics = ({ lists, results, showTooltips = true }) => {
                           )
                         : undefined
                     }
+                    wrapperStyle={{ zIndex: 100 }}
+                    cursor={{ fill: "transparent" }}
                   />
                   <Legend
                     wrapperStyle={{ paddingTop: 10 }}
