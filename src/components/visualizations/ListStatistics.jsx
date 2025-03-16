@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Typography,
@@ -23,35 +23,55 @@ import {
   CartesianGrid,
 } from "recharts";
 
-// Custom tooltip for pie chart to show actual entries
+// Custom tooltip for pie chart to show actual entries with scrolling support
 const CustomPieTooltip = ({ active, payload, itemMap, showTooltips }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const theme = useTheme();
+
   // If tooltips are disabled, return null
   if (!showTooltips) return null;
 
-  if (active && payload && payload.length && itemMap) {
+  if ((active || isHovered) && payload && payload.length && itemMap) {
     const data = payload[0];
-    const listId = data.payload.listId;
+    const listId = data?.payload?.listId;
+    if (!listId) return null;
+
     const entries = itemMap[listId] || [];
 
-    const maxEntriesToShow = 20;
+    const maxEntriesToShow = 100; // Show more since we have scrolling
     const hasMoreEntries = entries.length > maxEntriesToShow;
     const displayEntries = entries.slice(0, maxEntriesToShow);
 
     return (
       <Paper
-        elevation={3}
+        elevation={4}
         sx={{
-          padding: "10px",
-          backgroundColor: "background.paper",
-          maxWidth: "250px",
-          maxHeight: "300px",
-          overflow: "hidden",
+          padding: "12px",
+          backgroundColor: theme.palette.background.paper,
+          maxWidth: "280px",
+          zIndex: 9999,
+          pointerEvents: "auto", // Enable mouse events for scrolling
         }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         <Typography variant="subtitle2" color="textPrimary">
           {data.name}: {data.value} items
         </Typography>
-        <Box sx={{ mt: 1, maxHeight: "200px", overflow: "auto" }}>
+        <Box
+          sx={{
+            mt: 1,
+            maxHeight: "250px",
+            overflow: "auto",
+            "&::-webkit-scrollbar": {
+              width: "8px",
+            },
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: theme.palette.mode === "dark" ? "#555" : "#ccc",
+              borderRadius: "4px",
+            },
+          }}
+        >
           <List dense disablePadding>
             {displayEntries.map((item, index) => (
               <ListItem key={index} dense sx={{ py: 0.5 }}>
@@ -77,7 +97,7 @@ const CustomPieTooltip = ({ active, payload, itemMap, showTooltips }) => {
   return null;
 };
 
-// Custom tooltip for bar chart to show actual entries
+// Custom tooltip for bar chart to show actual entries with scrolling support
 const CustomBarTooltip = ({
   active,
   payload,
@@ -85,10 +105,13 @@ const CustomBarTooltip = ({
   commonItems,
   showTooltips,
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const theme = useTheme();
+
   // If tooltips are disabled, return null
   if (!showTooltips) return null;
 
-  if (active && payload && payload.length && itemMap) {
+  if ((active || isHovered) && payload && payload.length && itemMap) {
     const listId = payload[0]?.payload?.listId;
     if (!listId || !itemMap[listId]) return null;
 
@@ -102,23 +125,20 @@ const CustomBarTooltip = ({
     const entries = itemMap[listId] || [];
     const commonEntriesList = commonItems || [];
 
-    const maxEntriesToShow = 12;
-    const hasMoreEntries = entries.length > maxEntriesToShow;
-    const displayEntries = entries.slice(0, maxEntriesToShow);
-
-    const hasMoreCommonEntries = commonEntriesList.length > maxEntriesToShow;
-    const displayCommonEntries = commonEntriesList.slice(0, maxEntriesToShow);
+    const maxEntriesToShow = 100; // Show more since we have scrolling
 
     return (
       <Paper
-        elevation={3}
+        elevation={4}
         sx={{
-          padding: "10px",
-          backgroundColor: "background.paper",
-          maxWidth: "250px",
-          maxHeight: "350px",
-          overflow: "hidden",
+          padding: "12px",
+          backgroundColor: theme.palette.background.paper,
+          maxWidth: "280px",
+          zIndex: 9999,
+          pointerEvents: "auto", // Enable mouse events for scrolling
         }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         <Typography variant="subtitle2" color="textPrimary">
           {payload[0].payload.name}
@@ -132,7 +152,20 @@ const CustomBarTooltip = ({
           Items: {commonItemsCount}
         </Typography>
 
-        <Box sx={{ mt: 1, maxHeight: "300px", overflow: "auto" }}>
+        <Box
+          sx={{
+            mt: 1,
+            maxHeight: "300px",
+            overflow: "auto",
+            "&::-webkit-scrollbar": {
+              width: "8px",
+            },
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: theme.palette.mode === "dark" ? "#555" : "#ccc",
+              borderRadius: "4px",
+            },
+          }}
+        >
           {/* Unique items section */}
           <Typography
             variant="caption"
@@ -141,7 +174,7 @@ const CustomBarTooltip = ({
             Unique items:
           </Typography>
           <List dense disablePadding>
-            {displayEntries.map((item, index) => (
+            {entries.slice(0, maxEntriesToShow).map((item, index) => (
               <ListItem key={index} dense sx={{ py: 0.5 }}>
                 <Typography variant="caption" color="textSecondary">
                   {item}
@@ -149,7 +182,7 @@ const CustomBarTooltip = ({
               </ListItem>
             ))}
           </List>
-          {hasMoreEntries && (
+          {entries.length > maxEntriesToShow && (
             <Typography
               variant="caption"
               color="textSecondary"
@@ -169,15 +202,17 @@ const CustomBarTooltip = ({
                 Common items:
               </Typography>
               <List dense disablePadding>
-                {displayCommonEntries.map((item, index) => (
-                  <ListItem key={`common-${index}`} dense sx={{ py: 0.5 }}>
-                    <Typography variant="caption" color="textSecondary">
-                      {item}
-                    </Typography>
-                  </ListItem>
-                ))}
+                {commonEntriesList
+                  .slice(0, maxEntriesToShow)
+                  .map((item, index) => (
+                    <ListItem key={`common-${index}`} dense sx={{ py: 0.5 }}>
+                      <Typography variant="caption" color="textSecondary">
+                        {item}
+                      </Typography>
+                    </ListItem>
+                  ))}
               </List>
-              {hasMoreCommonEntries && (
+              {commonEntriesList.length > maxEntriesToShow && (
                 <Typography
                   variant="caption"
                   color="textSecondary"

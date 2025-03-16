@@ -6,57 +6,75 @@ import {
   Paper,
   List,
   ListItem,
+  Fade,
 } from "@mui/material";
 import * as d3 from "d3";
 
-// Custom tooltip component for showing entries
+// Custom tooltip component for showing entries with scrolling support
 const VennTooltip = ({ title, entries, position }) => {
-  const maxEntriesToShow = 15;
+  const [isHovered, setIsHovered] = useState(false);
+  const theme = useTheme();
+  const maxEntriesToShow = 100; // Show more since we have scrolling
   const hasMoreEntries = entries.length > maxEntriesToShow;
   const displayEntries = entries.slice(0, maxEntriesToShow);
 
   return (
-    <Paper
-      elevation={3}
-      sx={{
-        position: "fixed", // Changed from absolute to fixed for better positioning
-        left: position.x + 10,
-        top: position.y,
-        padding: "8px",
-        backgroundColor: "background.paper",
-        maxWidth: "220px",
-        maxHeight: "300px",
-        overflow: "hidden",
-        zIndex: 10000, // Increased z-index to ensure visibility
-        borderRadius: 1,
-        boxShadow: 3,
-        pointerEvents: "none", // Prevent the tooltip from blocking mouse events
-      }}
-    >
-      <Typography variant="subtitle2" sx={{ fontWeight: "bold", mb: 0.5 }}>
-        {title} ({entries.length})
-      </Typography>
-      <Box sx={{ maxHeight: "250px", overflow: "auto" }}>
-        <List dense disablePadding>
-          {displayEntries.map((entry, idx) => (
-            <ListItem key={idx} dense sx={{ py: 0.5 }}>
-              <Typography variant="caption" color="textSecondary">
-                {entry}
-              </Typography>
-            </ListItem>
-          ))}
-        </List>
-        {hasMoreEntries && (
-          <Typography
-            variant="caption"
-            color="textSecondary"
-            sx={{ mt: 1, fontStyle: "italic", display: "block" }}
-          >
-            And {entries.length - maxEntriesToShow} more items...
-          </Typography>
-        )}
-      </Box>
-    </Paper>
+    <Fade in={true}>
+      <Paper
+        elevation={4}
+        sx={{
+          position: "fixed",
+          left: position.x + 15,
+          top: position.y + 10,
+          padding: "12px",
+          backgroundColor: theme.palette.background.paper,
+          maxWidth: "280px",
+          maxHeight: "350px",
+          borderRadius: 1,
+          boxShadow: 3,
+          pointerEvents: "auto", // Enable mouse events for scrolling
+          zIndex: 10000,
+        }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: "bold", mb: 0.5 }}>
+          {title} ({entries.length})
+        </Typography>
+        <Box
+          sx={{
+            maxHeight: "300px",
+            overflow: "auto",
+            "&::-webkit-scrollbar": {
+              width: "8px",
+            },
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: theme.palette.mode === "dark" ? "#555" : "#ccc",
+              borderRadius: "4px",
+            },
+          }}
+        >
+          <List dense disablePadding>
+            {displayEntries.map((entry, idx) => (
+              <ListItem key={idx} dense sx={{ py: 0.5 }}>
+                <Typography variant="caption" color="textSecondary">
+                  {entry}
+                </Typography>
+              </ListItem>
+            ))}
+          </List>
+          {hasMoreEntries && (
+            <Typography
+              variant="caption"
+              color="textSecondary"
+              sx={{ mt: 1, fontStyle: "italic", display: "block" }}
+            >
+              And {entries.length - maxEntriesToShow} more items...
+            </Typography>
+          )}
+        </Box>
+      </Paper>
+    </Fade>
   );
 };
 
@@ -71,6 +89,7 @@ const VennDiagram = ({ lists, results, showTooltips = true }) => {
     entries: [],
     position: { x: 0, y: 0 },
   });
+  const [tooltipLocked, setTooltipLocked] = useState(false);
 
   // Debug the tooltip state
   useEffect(() => {
@@ -101,8 +120,8 @@ const VennDiagram = ({ lists, results, showTooltips = true }) => {
     if (!showTooltips) return;
 
     const handleMouseMove = (event) => {
-      // Only update position if tooltip is already showing
-      if (tooltip.show) {
+      // Only update position if tooltip is already showing and not locked
+      if (tooltip.show && !tooltipLocked) {
         setTooltip((prev) => ({
           ...prev,
           position: { x: event.clientX, y: event.clientY },
@@ -116,7 +135,7 @@ const VennDiagram = ({ lists, results, showTooltips = true }) => {
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
     };
-  }, [tooltip.show, showTooltips]);
+  }, [tooltip.show, tooltipLocked, showTooltips]);
 
   useEffect(() => {
     if (!lists || lists.length < 2 || !results || !vennRef.current) return;
@@ -531,6 +550,39 @@ const VennDiagram = ({ lists, results, showTooltips = true }) => {
     }
   }, [lists, results, theme, dimensions, showTooltips]);
 
+  // Add event listeners to document to manage tooltip lifecycle
+  useEffect(() => {
+    const handleDocumentClick = (e) => {
+      // If clicking outside tooltip and tooltip is showing
+      if (tooltip.show) {
+        // Check if click is inside tooltip
+        const tooltipElements = document.querySelectorAll(".venn-tooltip");
+        let isInsideTooltip = false;
+
+        tooltipElements.forEach((tooltip) => {
+          if (tooltip.contains(e.target)) {
+            isInsideTooltip = true;
+          }
+        });
+
+        if (isInsideTooltip) {
+          // Lock tooltip if clicked inside it
+          setTooltipLocked(true);
+        } else if (tooltipLocked) {
+          // Close tooltip if locked and clicked outside
+          setTooltipLocked(false);
+          setTooltip((prev) => ({ ...prev, show: false }));
+        }
+      }
+    };
+
+    document.addEventListener("click", handleDocumentClick);
+
+    return () => {
+      document.removeEventListener("click", handleDocumentClick);
+    };
+  }, [tooltip.show, tooltipLocked]);
+
   return (
     <Box
       sx={{
@@ -586,6 +638,7 @@ const VennDiagram = ({ lists, results, showTooltips = true }) => {
             title={tooltip.title}
             entries={tooltip.entries}
             position={tooltip.position}
+            className="venn-tooltip" // Add class for click detection
           />
         </>
       )}
