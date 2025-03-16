@@ -1,5 +1,12 @@
 import React, { useMemo } from "react";
-import { Box, Typography, useTheme, Grid, Paper } from "@mui/material";
+import {
+  Box,
+  Typography,
+  useTheme,
+  Grid,
+  Paper,
+  useMediaQuery,
+} from "@mui/material";
 import {
   PieChart,
   Pie,
@@ -16,6 +23,8 @@ import {
 
 const ListStatistics = ({ lists, results }) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isExtraSmall = useMediaQuery("(max-width:400px)");
 
   // Prepare data for charts
   const chartData = useMemo(() => {
@@ -63,6 +72,55 @@ const ListStatistics = ({ lists, results }) => {
   // Generate colors for the charts
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
 
+  // Custom renderer for pie chart labels to prevent cutoff
+  const renderCustomizedLabel = (props) => {
+    const {
+      cx,
+      cy,
+      midAngle,
+      innerRadius,
+      outerRadius,
+      percent,
+      index,
+      name,
+      value,
+    } = props;
+    const RADIAN = Math.PI / 180;
+    const radius = outerRadius * (isExtraSmall ? 1.3 : isMobile ? 1.4 : 1.5);
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    // For very small screens or small segments, just show percentage
+    if (isExtraSmall || percent < 0.05) {
+      return (
+        <text
+          x={x}
+          y={y}
+          fill={theme.palette.text.primary}
+          textAnchor={x > cx ? "start" : "end"}
+          dominantBaseline="central"
+          fontSize={isExtraSmall ? 9 : 10}
+        >
+          {`${(percent * 100).toFixed(0)}%`}
+        </text>
+      );
+    }
+
+    // For other cases, show name and value
+    return (
+      <text
+        x={x}
+        y={y}
+        fill={theme.palette.text.primary}
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+        fontSize={isExtraSmall ? 9 : isMobile ? 10 : 12}
+      >
+        {`${name.length > 10 ? name.substring(0, 8) + "..." : name}: ${value}`}
+      </text>
+    );
+  };
+
   return (
     <Box sx={{ mt: 4, width: "100%" }}>
       <Typography variant="h6" gutterBottom>
@@ -79,7 +137,15 @@ const ListStatistics = ({ lists, results }) => {
             <Typography variant="subtitle1" align="center" gutterBottom>
               Distribution of Unique Items
             </Typography>
-            <Box sx={{ width: "100%", height: { xs: 250, sm: 300 } }}>
+            <Box
+              sx={{
+                width: "100%",
+                height: { xs: 280, sm: 300 },
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -88,11 +154,12 @@ const ListStatistics = ({ lists, results }) => {
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={({ width, height }) =>
-                      Math.min(width, height) * 0.35
-                    }
+                    // Adjust the inner and outer radius based on screen size
+                    outerRadius={isExtraSmall ? 60 : isMobile ? 70 : 90}
+                    innerRadius={isExtraSmall ? 25 : isMobile ? 30 : 40}
                     fill="#8884d8"
-                    label={(entry) => `${entry.name}: ${entry.value}`}
+                    labelLine={!isExtraSmall} // Hide label lines on very small screens
+                    label={renderCustomizedLabel}
                   >
                     {chartData.pieData.map((entry, index) => (
                       <Cell
@@ -101,11 +168,19 @@ const ListStatistics = ({ lists, results }) => {
                       />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => [`${value} items`, "Count"]} />
+                  <Tooltip
+                    formatter={(value, name) => [`${value} items`, name]}
+                    contentStyle={{
+                      background: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                    }}
+                  />
+                  {/* Move legend below the chart on mobile */}
                   <Legend
-                    layout="vertical"
-                    verticalAlign="bottom"
-                    align="center"
+                    layout={isMobile ? "horizontal" : "vertical"}
+                    verticalAlign={isMobile ? "bottom" : "middle"}
+                    align={isMobile ? "center" : "right"}
+                    wrapperStyle={isMobile ? { paddingTop: 10 } : {}}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -130,20 +205,30 @@ const ListStatistics = ({ lists, results }) => {
                     top: 20,
                     right: 10,
                     left: 0,
-                    bottom: 5,
+                    bottom: isExtraSmall ? 80 : isMobile ? 60 : 5,
                   }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="name"
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: isExtraSmall ? 8 : isMobile ? 10 : 12 }}
                     height={60}
                     angle={-45}
                     textAnchor="end"
+                    interval={0}
                   />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend wrapperStyle={{ paddingTop: 10 }} />
+                  <YAxis tick={{ fontSize: isExtraSmall ? 10 : 12 }} />
+                  <Tooltip
+                    contentStyle={{
+                      background: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      fontSize: isExtraSmall ? 10 : 12,
+                    }}
+                  />
+                  <Legend
+                    wrapperStyle={{ paddingTop: 10 }}
+                    verticalAlign="top"
+                  />
                   <Bar dataKey="Total Items" fill="#8884d8" />
                   <Bar dataKey="Unique Items" fill="#82ca9d" />
                 </BarChart>

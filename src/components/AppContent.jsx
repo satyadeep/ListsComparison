@@ -30,6 +30,7 @@ import {
   compareAllLists,
   compareSelectedLists,
   clearAll,
+  copyToClipboard, // Add this import
 } from "../utils/listUtils"; // Add compareAllLists import here
 import { saveConfiguration, loadConfiguration } from "../utils/dbUtils";
 import { applyFilter } from "../utils/filterUtils"; // Add this import
@@ -272,6 +273,17 @@ function AppContent() {
           console.error("Failed to copy: ", err);
         });
     }
+  }, []);
+
+  // Enhanced copyToClipboard function that provides feedback
+  const handleCopyToClipboard = useCallback((content) => {
+    copyToClipboard(content, (message, severity) => {
+      setNotification({
+        open: true,
+        message,
+        severity,
+      });
+    });
   }, []);
 
   // Function to save the current state as a new configuration
@@ -795,7 +807,7 @@ function AppContent() {
           onOpenSettings={openListSettings}
           onOpenRenameDialog={openRenameDialog} // Add this prop
           onInputChange={handleImmediateInputChange}
-          onCopyToClipboard={memoizedCopyToClipboard}
+          onCopyToClipboard={handleCopyToClipboard}
           getListContent={getListContent}
           setLists={setLists}
           selectedLists={selectedLists}
@@ -811,7 +823,7 @@ function AppContent() {
             setResultsSorting={setResultsSorting}
             compareMode={compareMode}
             caseSensitive={caseSensitive}
-            onCopyToClipboard={memoizedCopyToClipboard}
+            onCopyToClipboard={handleCopyToClipboard}
             getListContent={getListContent}
           />
         )}
@@ -828,7 +840,7 @@ function AppContent() {
           setResultsSorting={setResultsSorting}
           compareMode={compareMode}
           caseSensitive={caseSensitive}
-          onCopyToClipboard={memoizedCopyToClipboard}
+          onCopyToClipboard={handleCopyToClipboard}
         />
 
         {/* Add new Visualization Section */}

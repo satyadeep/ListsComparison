@@ -458,28 +458,79 @@ export const transformCommonToPascalCase = (
   );
 };
 
-// Function to copy content to clipboard
-export const copyToClipboard = (content) => {
-  if (typeof content === "object" && Array.isArray(content)) {
-    // If content is an array, join it with newlines
-    navigator.clipboard
-      .writeText(content.join("\n"))
-      .then(() => {
-        console.log("Content copied to clipboard");
-      })
-      .catch((err) => {
-        console.error("Failed to copy: ", err);
-      });
+// Improved function to copy content to clipboard with mobile support
+export const copyToClipboard = async (content, showNotification) => {
+  let textToCopy = "";
+
+  // Handle different content types
+  if (Array.isArray(content)) {
+    textToCopy = content.join("\n");
   } else if (typeof content === "string") {
-    // If content is already a string
-    navigator.clipboard
-      .writeText(content)
-      .then(() => {
-        console.log("Content copied to clipboard");
-      })
-      .catch((err) => {
-        console.error("Failed to copy: ", err);
-      });
+    textToCopy = content;
+  } else if (content !== null && content !== undefined) {
+    textToCopy = String(content);
+  }
+
+  try {
+    // Modern approach using Clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(textToCopy);
+      if (showNotification) {
+        showNotification("Copied to clipboard", "success");
+      }
+      console.log("Content copied to clipboard using Clipboard API");
+      return true;
+    }
+    // Fallback for mobile devices and older browsers
+    else {
+      // Create a temporary textarea element
+      const textArea = document.createElement("textarea");
+      textArea.value = textToCopy;
+
+      // Make it invisible but part of the document
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+
+      // For iOS devices specifically
+      if (navigator.userAgent.match(/ipad|ipod|iphone/i)) {
+        const range = document.createRange();
+        range.selectNodeContents(textArea);
+
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        textArea.setSelectionRange(0, textArea.value.length);
+      } else {
+        textArea.select();
+      }
+
+      // Execute the copy command
+      const successful = document.execCommand("copy");
+      document.body.removeChild(textArea);
+
+      if (successful) {
+        if (showNotification) {
+          showNotification("Copied to clipboard", "success");
+        }
+        console.log("Content copied to clipboard using execCommand");
+        return true;
+      } else {
+        console.error("Failed to copy with execCommand");
+        if (showNotification) {
+          showNotification("Failed to copy to clipboard", "error");
+        }
+        return false;
+      }
+    }
+  } catch (err) {
+    console.error("Failed to copy:", err);
+    if (showNotification) {
+      showNotification("Failed to copy to clipboard: " + err.message, "error");
+    }
+    return false;
   }
 };
 
