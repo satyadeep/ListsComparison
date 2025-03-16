@@ -158,11 +158,11 @@ const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
 
           {columns.length > 0 && (
             <FormControl fullWidth sx={{ mt: 2 }}>
-              <InputLabel>Select Column</InputLabel>
+              <InputLabel>Select Column To Load</InputLabel>
               <Select
                 value={selectedColumn}
                 onChange={handleColumnChange}
-                label="Select Column"
+                label="Select Column To Load"
               >
                 {columns.map((column) => (
                   <MenuItem key={column} value={column}>
