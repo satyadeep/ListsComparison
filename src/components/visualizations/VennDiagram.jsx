@@ -306,8 +306,8 @@ const VennDiagram = ({
       const centerX = width / 2;
       const centerY = height / 2;
 
-      // Calculate radius based on container size
-      const baseRadius = Math.min(width, height) * 0.2;
+      // Calculate base radius - will be scaled based on list size
+      const baseRadius = Math.min(width, height) * 0.18;
 
       // Create SVG
       const svg = container
@@ -333,21 +333,31 @@ const VennDiagram = ({
         const list1Items = result1 ? result1.uniqueValues : [];
         const list2Items = result2 ? result2.uniqueValues : [];
 
+        // Calculate total items (for proportions)
+        const totalItems = count1 + count2 - commonCount;
+        const maxCount = Math.max(count1, count2);
+
         // Detect if there are actually shared items between the two lists
         const intersectionItems = findIntersectionItems([list1.id, list2.id]);
         console.log("Two-list intersectionItems:", intersectionItems);
         const hasIntersection = intersectionItems.length > 0;
 
-        // Normalize circle sizes based on item counts
-        const radius1 =
-          baseRadius * (0.8 + 0.2 * (count1 / Math.max(count1, count2, 10)));
-        const radius2 =
-          baseRadius * (0.8 + 0.2 * (count2 / Math.max(count1, count2, 10)));
+        // New radius calculation: proportional to list size relative to maxCount
+        const radius1 = baseRadius * (0.5 + 0.5 * (count1 / maxCount));
+        const radius2 = baseRadius * (0.5 + 0.5 * (count2 / maxCount));
 
-        // Position circles with appropriate overlap based on whether they share items
-        // Much stronger overlap when items are shared (0.5), wider separation when no shared items (1.5)
-        const offsetFactor = hasIntersection ? 0.5 : 1.5;
-        const offset = Math.min(radius1, radius2) * offsetFactor;
+        // Calculate overlap proportion (Jaccard index)
+        // This represents how much circles should overlap
+        const jaccardIndex = hasIntersection
+          ? intersectionItems.length /
+            (count1 + count2 - intersectionItems.length)
+          : 0;
+
+        // Calculate circle distance based on overlap proportion
+        // Full overlap = 0 distance, No overlap = sum of radii
+        // The offset is scaled to create visual separation even with high overlap
+        const overlapScale = 0.8 - jaccardIndex * 0.6; // Maps [0,1] -> [0.8,0.2]
+        const offset = (radius1 + radius2) * overlapScale;
 
         // Responsive font sizes
         const responsiveFontSize = width < 400 ? 10 : width < 600 ? 12 : 14;
@@ -355,7 +365,7 @@ const VennDiagram = ({
         // Draw circles with improved event handlers
         const circle1 = svg
           .append("circle")
-          .attr("cx", centerX - offset)
+          .attr("cx", centerX - offset / 2)
           .attr("cy", centerY)
           .attr("r", radius1)
           .style("fill", colors[0])
@@ -400,7 +410,7 @@ const VennDiagram = ({
 
         const circle2 = svg
           .append("circle")
-          .attr("cx", centerX + offset)
+          .attr("cx", centerX + offset / 2)
           .attr("cy", centerY)
           .attr("r", radius2)
           .style("fill", colors[1])
@@ -447,7 +457,7 @@ const VennDiagram = ({
         if (hasIntersection) {
           // Calculate intersection lens (the shape created by two overlapping circles)
           // First, calculate the distance between circle centers
-          const distance = offset * 2;
+          const distance = offset;
 
           // Calculate lens points where the circles intersect
           // This is based on the circle-circle intersection formula
@@ -460,16 +470,16 @@ const VennDiagram = ({
           const intersectionPoint1 = {
             x:
               centerX -
-              offset +
-              (a * (centerX + offset - (centerX - offset))) / distance,
+              offset / 2 +
+              (a * (centerX + offset / 2 - (centerX - offset / 2))) / distance,
             y: centerY + h,
           };
 
           const intersectionPoint2 = {
             x:
               centerX -
-              offset +
-              (a * (centerX + offset - (centerX - offset))) / distance,
+              offset / 2 +
+              (a * (centerX + offset / 2 - (centerX - offset / 2))) / distance,
             y: centerY - h,
           };
 
@@ -549,7 +559,7 @@ const VennDiagram = ({
         // Add labels
         svg
           .append("text")
-          .attr("x", centerX - offset * 1.5)
+          .attr("x", centerX - offset)
           .attr("y", centerY - radius1 * 0.7)
           .attr("text-anchor", "middle")
           .style("font-size", `${responsiveFontSize}px`)
@@ -625,36 +635,70 @@ const VennDiagram = ({
         const count2 = list2Items.length;
         const count3 = list3Items.length;
 
-        // Check for actual intersections between each pair of lists
-        const intersection12 =
-          findIntersectionItems([list1.id, list2.id]).length > 0;
-        const intersection23 =
-          findIntersectionItems([list2.id, list3.id]).length > 0;
-        const intersection13 =
-          findIntersectionItems([list1.id, list3.id]).length > 0;
+        // Calculate maximum count for scaling
+        const maxCount = Math.max(count1, count2, count3);
+
+        // Calculate pairwise intersections for overlap calculations
+        const intersection12Items = findIntersectionItems([list1.id, list2.id]);
+        const intersection23Items = findIntersectionItems([list2.id, list3.id]);
+        const intersection13Items = findIntersectionItems([list1.id, list3.id]);
+
+        const intersection12 = intersection12Items.length;
+        const intersection23 = intersection23Items.length;
+        const intersection13 = intersection13Items.length;
+
+        // Calculate Jaccard indices for each pair
+        const totalItems12 = count1 + count2 - intersection12;
+        const totalItems23 = count2 + count3 - intersection23;
+        const totalItems13 = count1 + count3 - intersection13;
+
+        const jaccardIndex12 =
+          intersection12 > 0 ? intersection12 / totalItems12 : 0;
+        const jaccardIndex23 =
+          intersection23 > 0 ? intersection23 / totalItems23 : 0;
+        const jaccardIndex13 =
+          intersection13 > 0 ? intersection13 / totalItems13 : 0;
 
         // Determine if any intersections exist
         const hasAnyIntersection =
-          intersection12 || intersection23 || intersection13;
+          intersection12 > 0 || intersection23 > 0 || intersection13 > 0;
+
+        // Calculate radii for each circle - proportional to item count
+        const radius1 = baseRadius * (0.5 + 0.5 * (count1 / maxCount));
+        const radius2 = baseRadius * (0.5 + 0.5 * (count2 / maxCount));
+        const radius3 = baseRadius * (0.5 + 0.5 * (count3 / maxCount));
 
         // Calculate angles and positions for a proper 3-circle Venn diagram
         const angle = (2 * Math.PI) / 3;
-        const radius = baseRadius * 0.8;
 
-        // Adjust offset based on whether there are intersections
-        // Make overlap more pronounced when there are intersections (0.5), wider when none (1.5)
-        const offsetFactor = hasAnyIntersection ? 0.5 : 1.5;
-        const offset = radius * offsetFactor;
+        // Calculate offsets (distances) based on Jaccard indices
+        const calculateOffset = (jaccardIndex) => {
+          // Scale from 0.9 to 0.4 as jaccard increases (more overlap -> closer circles)
+          return 0.9 - jaccardIndex * 0.5;
+        };
 
-        // Calculate positions
+        // Calculate base offsets for each pair
+        const offsetFactor12 = calculateOffset(jaccardIndex12);
+        const offsetFactor23 = calculateOffset(jaccardIndex23);
+        const offsetFactor13 = calculateOffset(jaccardIndex13);
+
+        // Average the offsets that affect each circle
+        const offset1 =
+          ((offsetFactor12 + offsetFactor13) / 2) * baseRadius * 1.5;
+        const offset2 =
+          ((offsetFactor12 + offsetFactor23) / 2) * baseRadius * 1.5;
+        const offset3 =
+          ((offsetFactor13 + offsetFactor23) / 2) * baseRadius * 1.5;
+
+        // Calculate positions with adjusted offsets
         const x1 = centerX;
-        const y1 = centerY - offset;
+        const y1 = centerY - offset1;
 
-        const x2 = centerX + offset * Math.sin(angle);
-        const y2 = centerY + offset * Math.cos(angle);
+        const x2 = centerX + offset2 * Math.sin(angle);
+        const y2 = centerY + offset2 * Math.cos(angle);
 
-        const x3 = centerX - offset * Math.sin(angle);
-        const y3 = centerY + offset * Math.cos(angle);
+        const x3 = centerX - offset3 * Math.sin(angle);
+        const y3 = centerY + offset3 * Math.cos(angle);
 
         // Store circle centers and ids for intersection calculations
         const circleData = [
@@ -663,6 +707,7 @@ const VennDiagram = ({
             name: list1.name || `List ${list1.id}`,
             x: x1,
             y: y1,
+            r: radius1,
             items: list1Items,
           },
           {
@@ -670,6 +715,7 @@ const VennDiagram = ({
             name: list2.name || `List ${list2.id}`,
             x: x2,
             y: y2,
+            r: radius2,
             items: list2Items,
           },
           {
@@ -677,6 +723,7 @@ const VennDiagram = ({
             name: list3.name || `List ${list3.id}`,
             x: x3,
             y: y3,
+            r: radius3,
             items: list3Items,
           },
         ];
@@ -695,7 +742,7 @@ const VennDiagram = ({
             .append("circle")
             .attr("cx", circle.x)
             .attr("cy", circle.y)
-            .attr("r", radius);
+            .attr("r", circle.r);
 
           return {
             id: clipId,
@@ -734,7 +781,7 @@ const VennDiagram = ({
             .append("circle")
             .attr("cx", circle.x)
             .attr("cy", circle.y)
-            .attr("r", radius)
+            .attr("r", circle.r)
             .style("fill", colors[i])
             .style("fill-opacity", 0.5)
             .style("stroke", d3.rgb(colors[i]).darker())
@@ -792,7 +839,7 @@ const VennDiagram = ({
             .append("circle")
             .attr("cx", circleData[j].x)
             .attr("cy", circleData[j].y)
-            .attr("r", radius)
+            .attr("r", circleData[j].r)
             .attr("clip-path", `url(#${intersection.clipId1})`)
             .style("fill", "rgba(128, 0, 128, 0.3)")
             .style("stroke", "none")
@@ -854,7 +901,7 @@ const VennDiagram = ({
           .append("circle")
           .attr("cx", circleData[1].x)
           .attr("cy", circleData[1].y)
-          .attr("r", radius)
+          .attr("r", circleData[1].r)
           .attr("clip-path", `url(#${clipPaths[0].id})`);
 
         // Now use this combined clip path on the third circle
@@ -862,7 +909,7 @@ const VennDiagram = ({
           .append("circle")
           .attr("cx", circleData[2].x)
           .attr("cy", circleData[2].y)
-          .attr("r", radius)
+          .attr("r", circleData[2].r)
           .attr("clip-path", `url(#${clip12Id})`)
           .style("fill", "rgba(128, 0, 128, 0.5)")
           .style("stroke", "none")
@@ -917,7 +964,7 @@ const VennDiagram = ({
         svg
           .append("text")
           .attr("x", x1)
-          .attr("y", y1 - radius - 10)
+          .attr("y", y1 - radius1 - 10)
           .attr("text-anchor", "middle")
           .style("font-size", fontSize)
           .style("fill", theme.palette.text.primary)
@@ -926,7 +973,7 @@ const VennDiagram = ({
         svg
           .append("text")
           .attr("x", x2 + 10)
-          .attr("y", y2 + radius + 15)
+          .attr("y", y2 + radius2 + 15)
           .attr("text-anchor", "middle")
           .style("font-size", fontSize)
           .style("fill", theme.palette.text.primary)
@@ -935,7 +982,7 @@ const VennDiagram = ({
         svg
           .append("text")
           .attr("x", x3 - 10)
-          .attr("y", y3 + radius + 15)
+          .attr("y", y3 + radius3 + 15)
           .attr("text-anchor", "middle")
           .style("font-size", fontSize)
           .style("fill", theme.palette.text.primary)
@@ -1033,16 +1080,7 @@ const VennDiagram = ({
           );
           const connectionRatio = connectionCount / maxConnections;
 
-          // Significantly reduce distance for lists with shared items - brings them closer to center
-          // Use a more aggressive multiplier to ensure overlap
-          const distanceMultiplier = 1.0 - connectionRatio * 0.8; // Increased from 0.6 to 0.8
-          const distance = baseRadius * distanceMultiplier;
-
-          const x = centerX + Math.cos(angle) * distance;
-          const y = centerY + Math.sin(angle) * distance;
-
-          // Make circle size proportional to item count but also increase for lists with shared items
-          const itemCount = listItems.length;
+          // Calculate maximum item count in any list
           const maxItems = Math.max(
             ...lists.map(
               (l) =>
@@ -1052,19 +1090,17 @@ const VennDiagram = ({
             1 // Avoid division by zero
           );
 
-          // Increase size factor for lists with more shared items
-          const listSizeRatio = itemCount / maxItems;
-          // Increase size multiplier based on shared connections to create more overlap
-          const sharedItemRatio =
-            maxIntersectionSize > 0
-              ? sharedItemCount / (maxIntersectionSize * 2)
-              : 0;
+          // Calculate distance to center based on connections and shared items
+          const distanceMultiplier = 1.0 - connectionRatio * 0.6;
+          const distance = baseRadius * distanceMultiplier * 2;
 
-          // Ensure minimum size is bigger to create more overlap opportunity
-          // Make all circles a bit bigger overall to encourage overlap
-          const sizeMultiplier =
-            0.8 + 0.3 * listSizeRatio + 0.4 * Math.min(1, connectionRatio * 3); // Increased size factors
-          const radius = baseRadius * sizeMultiplier;
+          const x = centerX + Math.cos(angle) * distance;
+          const y = centerY + Math.sin(angle) * distance;
+
+          // Make circle size directly proportional to item count relative to max
+          const itemCount = listItems.length;
+          const sizeRatio = 0.4 + 0.6 * (itemCount / maxItems);
+          const radius = baseRadius * sizeRatio * 1.2;
 
           // Store circle data
           circleData.push({
