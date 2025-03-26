@@ -1,226 +1,310 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Button,
+  Typography,
+  Box,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  Typography,
-  Box,
   CircularProgress,
   Alert,
   useTheme,
 } from "@mui/material";
 import * as XLSX from "xlsx";
-import Papa from "papaparse";
 
 const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
   const [file, setFile] = useState(null);
   const [columns, setColumns] = useState([]);
   const [selectedColumn, setSelectedColumn] = useState("");
-  const [preview, setPreview] = useState([]);
+  const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [parsedData, setParsedData] = useState([]);
+  const [processing, setProcessing] = useState(false);
+  const fileInputRef = useRef(null);
   const theme = useTheme();
 
-  const handleFileChange = (event) => {
+  const handleFileChange = async (event) => {
+    setErrorMessage("");
     const selectedFile = event.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      parseFile(selectedFile);
+
+    if (!selectedFile) {
+      setFile(null);
+      setColumns([]);
+      return;
     }
-  };
 
-  const parseFile = (file) => {
+    // Check file type
+    const fileType = selectedFile.type;
+    const validTypes = [
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/csv",
+      "application/csv",
+      "", // Some browsers may not set a type for CSV files
+    ];
+
+    if (
+      !validTypes.includes(fileType) &&
+      !selectedFile.name.endsWith(".csv") &&
+      !selectedFile.name.endsWith(".xlsx") &&
+      !selectedFile.name.endsWith(".xls")
+    ) {
+      setErrorMessage("Please upload a valid Excel or CSV file.");
+      return;
+    }
+
+    setFile(selectedFile);
     setLoading(true);
-    setError("");
-    setColumns([]);
-    setSelectedColumn("");
-    setPreview([]);
-    setParsedData([]);
 
-    const fileExtension = file.name.split(".").pop().toLowerCase();
-
-    if (fileExtension === "csv") {
-      Papa.parse(file, {
-        header: true,
-        complete: (results) => {
-          handleParseResults(results.data, results.meta.fields);
-        },
-        error: (error) => {
-          setError(`Error parsing CSV: ${error.message}`);
-          setLoading(false);
-        },
-      });
-    } else if (["xlsx", "xls"].includes(fileExtension)) {
+    try {
       const reader = new FileReader();
+
       reader.onload = (e) => {
         try {
           const data = e.target.result;
           const workbook = XLSX.read(data, { type: "array" });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          const parsedData = XLSX.utils.sheet_to_json(worksheet);
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-          if (parsedData.length > 0) {
-            const columnNames = Object.keys(parsedData[0]);
-            handleParseResults(parsedData, columnNames);
+          // Get column headers and format them
+          if (jsonData.length > 0) {
+            const headers = jsonData[0];
+            const columnOptions = headers.map((header, index) => ({
+              label: header || `Column ${index + 1}`,
+              value: index,
+            }));
+            setColumns(columnOptions);
+
+            // Automatically select the first column
+            if (columnOptions.length > 0) {
+              setSelectedColumn(columnOptions[0].value);
+            }
           } else {
-            setError("No data found in the Excel file.");
-            setLoading(false);
+            setErrorMessage("No data found in the file.");
           }
-        } catch (err) {
-          setError(`Error parsing Excel file: ${err.message}`);
+        } catch (error) {
+          console.error("Error parsing file:", error);
+          setErrorMessage(
+            "Error parsing the file. Make sure it's a valid Excel/CSV file."
+          );
+        } finally {
           setLoading(false);
         }
       };
-      reader.readAsArrayBuffer(file);
-    } else {
-      setError(
-        "Unsupported file format. Please upload .csv, .xlsx or .xls files."
-      );
+
+      reader.onerror = () => {
+        setErrorMessage("Error reading the file.");
+        setLoading(false);
+      };
+
+      reader.readAsArrayBuffer(selectedFile);
+    } catch (error) {
+      console.error("File processing error:", error);
+      setErrorMessage("Error processing the file.");
       setLoading(false);
     }
   };
 
-  const handleParseResults = (data, columnNames) => {
-    setParsedData(data);
-    setColumns(columnNames);
-    setLoading(false);
-  };
-
-  const handleColumnChange = (event) => {
-    const column = event.target.value;
-    setSelectedColumn(column);
-
-    // Generate preview of the column data
-    if (column && parsedData.length > 0) {
-      // Extract column data
-      const previewData = parsedData
-        .map((row) => row[column])
-        .filter((value) => value !== undefined && value !== null)
-        .map((value) => String(value).trim())
-        .filter((value) => value !== "");
-
-      setPreview(previewData.slice(0, 5)); // Show first 5 items
+  const handleImport = async () => {
+    if (!file || selectedColumn === "") {
+      setErrorMessage("Please select a file and column first.");
+      return;
     }
-  };
 
-  const handleApply = () => {
-    if (!selectedColumn) return;
-
-    setLoading(true);
+    setProcessing(true);
 
     try {
-      // Extract the selected column data from parsed data
-      const columnData = parsedData
-        .map((row) => row[selectedColumn])
-        .filter((value) => value !== undefined && value !== null)
-        .map((value) => String(value).trim())
-        .filter((value) => value !== "");
+      // Use setTimeout to ensure the UI updates with the processing state
+      setTimeout(async () => {
+        try {
+          const reader = new FileReader();
 
-      onColumnSelected(columnData.join("\n"));
-      setLoading(false);
-      onClose();
+          reader.onload = (e) => {
+            try {
+              const data = e.target.result;
+              const workbook = XLSX.read(data, { type: "array" });
+              const sheetName = workbook.SheetNames[0];
+              const worksheet = workbook.Sheets[sheetName];
+              const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+                header: 1,
+              });
+
+              // Extract values from the selected column
+              const columnData = [];
+              for (let i = 1; i < jsonData.length; i++) {
+                // Start from 1 to skip header row
+                const row = jsonData[i];
+                if (row && row[selectedColumn] !== undefined) {
+                  const value = row[selectedColumn];
+                  if (value !== null && value !== "") {
+                    columnData.push(value.toString());
+                  }
+                }
+              }
+
+              // Send the data back to the parent component
+              onColumnSelected(columnData.join("\n"));
+              handleClose();
+            } catch (error) {
+              console.error("Error extracting column data:", error);
+              setErrorMessage("Error extracting column data from the file.");
+            } finally {
+              setProcessing(false);
+            }
+          };
+
+          reader.onerror = () => {
+            setErrorMessage("Error reading the file during import.");
+            setProcessing(false);
+          };
+
+          reader.readAsArrayBuffer(file);
+        } catch (error) {
+          console.error("Import error:", error);
+          setErrorMessage("Error during import. Please try again.");
+          setProcessing(false);
+        }
+      }, 500); // Small delay to ensure UI updates before heavy processing
     } catch (error) {
-      setError(`Error extracting column data: ${error.message}`);
-      setLoading(false);
+      console.error("Unexpected import error:", error);
+      setErrorMessage("Unexpected error during import.");
+      setProcessing(false);
     }
+  };
+
+  const handleClose = () => {
+    // Reset state
+    setFile(null);
+    setColumns([]);
+    setSelectedColumn("");
+    setErrorMessage("");
+    setLoading(false);
+    setProcessing(false);
+
+    // Clear file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
+    onClose();
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>Import Excel/CSV File</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={processing ? null : handleClose}
+      maxWidth="sm"
+      fullWidth
+    >
+      <DialogTitle>Import from Excel/CSV</DialogTitle>
       <DialogContent>
-        <Box sx={{ my: 2 }}>
-          <input
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            onChange={handleFileChange}
-            style={{ marginBottom: "1rem" }}
-          />
-          {error && (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {error}
-            </Alert>
-          )}
+        {errorMessage && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {errorMessage}
+          </Alert>
+        )}
 
-          {loading && (
+        <Box sx={{ position: "relative" }}>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Select Excel/CSV file:
+            </Typography>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+              onChange={handleFileChange}
+              disabled={loading || processing}
+              style={{ marginTop: 8 }}
+            />
+          </Box>
+
+          {loading ? (
             <Box sx={{ display: "flex", justifyContent: "center", my: 3 }}>
-              <CircularProgress />
+              <CircularProgress size={30} />
             </Box>
+          ) : (
+            columns.length > 0 && (
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="column-select-label">Select Column</InputLabel>
+                <Select
+                  labelId="column-select-label"
+                  value={selectedColumn}
+                  onChange={(e) => setSelectedColumn(e.target.value)}
+                  label="Select Column"
+                  disabled={processing}
+                >
+                  {columns.map((column) => (
+                    <MenuItem key={column.value} value={column.value}>
+                      {column.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )
           )}
 
-          {columns.length > 0 && (
-            <FormControl fullWidth sx={{ mt: 2 }}>
-              <InputLabel>Select Column To Load</InputLabel>
-              <Select
-                value={selectedColumn}
-                onChange={handleColumnChange}
-                label="Select Column To Load"
+          {/* Processing overlay */}
+          {processing && (
+            <Box
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(0, 0, 0, 0.6)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 1,
+                zIndex: 10,
+                backdropFilter: "blur(3px)",
+                boxShadow: theme.shadows[5],
+              }}
+            >
+              <CircularProgress size={40} sx={{ color: "white" }} />
+              <Typography
+                variant="body1"
+                sx={{ color: "white", mt: 2, fontWeight: "medium" }}
               >
-                {columns.map((column) => (
-                  <MenuItem key={column} value={column}>
-                    {column}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-
-          {preview.length > 0 && (
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="subtitle1">Preview:</Typography>
-              <Box
-                sx={{
-                  backgroundColor:
-                    theme.palette.mode === "dark" ? "#333" : "#f5f5f5",
-                  p: 2,
-                  borderRadius: 1,
-                  maxHeight: "200px",
-                  overflow: "auto",
-                }}
+                Please wait while we process the data...
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{ color: "white", display: "block", mt: 1 }}
               >
-                {preview.map((item, index) => (
-                  <Typography
-                    key={index}
-                    variant="body2"
-                    sx={{
-                      color: theme.palette.mode === "dark" ? "#fff" : "#333",
-                      fontFamily: "monospace",
-                    }}
-                  >
-                    {item}
-                  </Typography>
-                ))}
-                {preview.length > 0 && (
-                  <Typography
-                    variant="body2"
-                    color={theme.palette.text.secondary}
-                    sx={{ mt: 1 }}
-                  >
-                    ... and more
-                  </Typography>
-                )}
-              </Box>
+                Calculating items and identifying duplicates
+              </Typography>
             </Box>
           )}
         </Box>
+
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+          * The selected column's data will be imported into the list.
+        </Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={handleClose} disabled={processing}>
+          Cancel
+        </Button>
         <Button
-          onClick={handleApply}
+          onClick={handleImport}
           color="primary"
           variant="contained"
-          disabled={!selectedColumn || loading}
+          disabled={!file || selectedColumn === "" || loading || processing}
         >
-          Import Column
+          {processing ? (
+            <CircularProgress size={24} color="inherit" />
+          ) : (
+            "Import"
+          )}
         </Button>
       </DialogActions>
     </Dialog>

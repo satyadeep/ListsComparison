@@ -1,4 +1,4 @@
-import { saveAs } from "file-saver";
+import * as XLSX from "xlsx";
 
 /**
  * Export lists and results to Excel format
@@ -18,14 +18,6 @@ export const exportToExcel = async (
   try {
     // Import the necessary functions to calculate both intersection and union
     const { compareSelectedLists } = await import("./listUtils");
-
-    // Dynamically import xlsx
-    const XLSX = await import("xlsx").catch((err) => {
-      console.error("Failed to load XLSX library:", err);
-      throw new Error(
-        "Excel export requires the xlsx library. Please run: npm install xlsx"
-      );
-    });
 
     // Create a new workbook
     const workbook = XLSX.utils.book_new();
@@ -186,5 +178,26 @@ export const exportToExcel = async (
     console.error("Excel export error:", error);
     alert(`Failed to export to Excel: ${error.message}`);
     return false;
+  }
+};
+
+/**
+ * Export data to an Excel file
+ * @param {Array} data - Array of objects to export
+ * @param {string} fileName - Name of the Excel file
+ */
+export const exportDataToExcel = (data, fileName) => {
+  try {
+    // Create a worksheet from the data
+    const worksheet = XLSX.utils.json_to_sheet(data);
+
+    // Create a workbook and append the worksheet
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+
+    // Write the workbook to a file
+    XLSX.writeFile(workbook, `${fileName}.xlsx`);
+  } catch (error) {
+    console.error("Failed to export to Excel:", error);
   }
 };

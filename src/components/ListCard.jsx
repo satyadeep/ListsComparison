@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Paper,
   Typography,
@@ -28,6 +28,7 @@ import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutli
 import TableViewIcon from "@mui/icons-material/TableView"; // New icon for Excel/CSV import
 import ContentCutIcon from "@mui/icons-material/ContentCut"; // Added for trim spaces functionality
 import DragHandleIcon from "@mui/icons-material/DragHandle"; // Import drag handle icon
+import { exportDataToExcel } from "../utils/excelExport"; // Use the correct utility function
 import {
   getListItemCount,
   getDuplicatesCount,
@@ -64,6 +65,8 @@ const ListCard = ({
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false); // State for processing status
+  const processingTimeoutRef = useRef(null);
   const hasActiveFilter = !!list.activeFilter;
   const originalItemCount = getListItemCount(
     list.content,
@@ -87,7 +90,22 @@ const ListCard = ({
   };
 
   const handleColumnSelected = (columnData) => {
-    onInputChange(list.id, columnData);
+    // Start processing when data is imported from Excel/CSV
+    setIsProcessing(true);
+
+    // Use setTimeout to ensure UI updates
+    setTimeout(() => {
+      // Update the list with the imported data
+      onInputChange(list.id, columnData);
+
+      // Set a delay before ending processing state
+      processingTimeoutRef.current = setTimeout(() => {
+        setIsProcessing(false);
+      }, 1500);
+
+      // Close the import dialog
+      setImportDialogOpen(false);
+    }, 100);
   };
 
   // Use the same color function as result windows
@@ -132,6 +150,70 @@ const ListCard = ({
     onInputChange(list.id, uniqueLines.join("\n"));
   };
 
+  // Function to generate and download an Excel file with duplicates
+  const handleDownloadDuplicates = () => {
+    const duplicates = [];
+    const lines = list.content.split("\n");
+    const seen = new Set();
+    const duplicatesSet = new Set();
+
+    // Identify duplicates
+    lines.forEach((line) => {
+      const compareLine = caseSensitive ? line : line.toLowerCase();
+      if (seen.has(compareLine)) {
+        duplicatesSet.add(line); // Add original line to duplicates
+      } else {
+        seen.add(compareLine);
+      }
+    });
+
+    // Convert duplicatesSet to an array
+    duplicates.push(...duplicatesSet);
+
+    // Prepare data for Excel export
+    const data = duplicates.map((duplicate, index) => ({
+      "Duplicate #": index + 1,
+      "Duplicate Value": duplicate,
+    }));
+
+    // Export to Excel using the correct utility function
+    exportDataToExcel(data, `Duplicates_List_${list.name || list.id}`);
+  };
+
+  // Function to handle processing duplicates
+  const handleProcessDuplicates = () => {
+    setIsProcessing(true); // Set processing state to true
+    setTimeout(() => {
+      const duplicates = [];
+      const lines = list.content.split("\n");
+      const seen = new Set();
+      const duplicatesSet = new Set();
+
+      // Identify duplicates
+      lines.forEach((line) => {
+        const compareLine = caseSensitive ? line : line.toLowerCase();
+        if (seen.has(compareLine)) {
+          duplicatesSet.add(line); // Add original line to duplicates
+        } else {
+          seen.add(compareLine);
+        }
+      });
+
+      // Convert duplicatesSet to an array
+      duplicates.push(...duplicatesSet);
+
+      // Prepare data for Excel export
+      const data = duplicates.map((duplicate, index) => ({
+        "Duplicate #": index + 1,
+        "Duplicate Value": duplicate,
+      }));
+
+      // Export to Excel using the correct utility function
+      exportDataToExcel(data, `Duplicates_List_${list.name || list.id}`);
+      setIsProcessing(false); // Reset processing state
+    }, 1000); // Simulate processing delay
+  };
+
   // Resize handlers
   const handleResizeStart = (e) => {
     e.preventDefault();
@@ -157,6 +239,90 @@ const ListCard = ({
     setIsResizing(false);
     window.removeEventListener("mousemove", handleResizeMove);
     window.removeEventListener("mouseup", handleResizeEnd);
+  };
+
+  // Handle paste with processing state
+  const handlePaste = (e) => {
+    // Start processing state
+    setIsProcessing(true);
+
+    // Get the clipboard data directly
+    const clipboardData = e.clipboardData || window.clipboardData;
+    const pastedText = clipboardData.getData("text");
+
+    // For non-empty pastes, insert them at cursor position
+    if (pastedText) {
+      e.preventDefault(); // Prevent default paste behavior
+
+      // Get the current input value and cursor position
+      const input = e.target;
+      const currentValue = input.value;
+      const selectionStart = input.selectionStart;
+      const selectionEnd = input.selectionEnd;
+
+      // Create the new value by inserting pasted text at cursor
+      const newValue =
+        currentValue.substring(0, selectionStart) +
+        pastedText +
+        currentValue.substring(selectionEnd);
+
+      // Update the immediateInput through onInputChange
+      onInputChange(list.id, newValue);
+
+      // Set a delay before ending processing state to ensure calculations complete
+      processingTimeoutRef.current = setTimeout(() => {
+        setIsProcessing(false);
+
+        // Try to set cursor position after paste
+        try {
+          const newCursorPos = selectionStart + pastedText.length;
+          if (input.setSelectionRange) {
+            setTimeout(() => {
+              input.focus();
+              input.setSelectionRange(newCursorPos, newCursorPos);
+            }, 0);
+          }
+        } catch (err) {
+          console.log("Could not set selection range:", err);
+        }
+      }, 1500);
+    } else {
+      // If there's no pasted text, just end processing
+      setIsProcessing(false);
+    }
+  };
+
+  // Clean up timeout on unmount or when dependencies change
+  useEffect(() => {
+    return () => {
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current);
+      }
+    };
+  }, [list.id]);
+
+  // Handle input change with processing state
+  const handleInputChange = (id, value) => {
+    // For larger inputs, show processing state
+    if (value.length > 5000) {
+      setIsProcessing(true);
+
+      // Store the value to ensure it's not lost during processing
+      const inputValue = value;
+
+      setTimeout(() => {
+        // Pass the stored value to ensure it's preserved
+        onInputChange(id, inputValue);
+
+        // Set a delay before ending processing state
+        processingTimeoutRef.current = setTimeout(() => {
+          setIsProcessing(false);
+        }, 1000);
+      }, 10);
+    } else {
+      // For smaller inputs, no processing state needed
+      onInputChange(id, value);
+    }
   };
 
   return (
@@ -213,18 +379,25 @@ const ListCard = ({
                 color: "white",
               }}
             />
-            <Chip
-              label={`Duplicates: ${getDuplicatesCount(
-                getListContent(list.id),
-                compareMode
-              )}`}
-              size="small"
-              sx={{
-                fontWeight: "bold",
-                bgcolor: "error.main",
-                color: "white",
-              }}
-            />
+            <Tooltip title="Click to download duplicates as an Excel file">
+              <Chip
+                label={`Duplicates: ${getDuplicatesCount(
+                  getListContent(list.id),
+                  compareMode
+                )}`}
+                size="small"
+                onClick={handleProcessDuplicates} // Trigger processing duplicates
+                sx={{
+                  fontWeight: "bold",
+                  bgcolor: "error.main",
+                  color: "white",
+                  cursor: "pointer", // Add pointer cursor for better UX
+                  "&:hover": {
+                    bgcolor: theme.palette.error.light, // Use a lighter error color for hover
+                  },
+                }}
+              />
+            </Tooltip>
             {hasActiveFilter && (
               <Chip
                 label="Filtered"
@@ -307,13 +480,10 @@ const ListCard = ({
               : "Enter text items separated by commas or new lines"
           }
           value={immediateInput !== undefined ? immediateInput : list.content}
-          onChange={(e) => onInputChange(list.id, e.target.value)}
-          onPaste={(e) => {
-            setTimeout(() => {
-              onInputChange(list.id, e.target.value);
-            }, 10);
-          }}
+          onChange={(e) => handleInputChange(list.id, e.target.value)}
+          onPaste={handlePaste}
           variant="outlined"
+          disabled={isProcessing} // Disable text area while processing
           sx={{
             "& .MuiOutlinedInput-root": {
               "& .MuiOutlinedInput-notchedOutline": {
@@ -326,12 +496,46 @@ const ListCard = ({
               "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                 borderColor: getBorderColor(),
               },
+              "&.Mui-disabled": {
+                opacity: 0.7,
+                "& textarea": {
+                  color: theme.palette.text.primary, // Keep text visible when disabled
+                  opacity: 0.8,
+                },
+              },
               backgroundColor: isDarkMode
                 ? "rgba(255, 255, 255, 0.05)"
                 : "white",
             },
           }}
         />
+
+        {/* Show processing message */}
+        {isProcessing && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              backgroundColor: "rgba(0, 0, 0, 0.8)",
+              color: "white",
+              padding: "12px 20px",
+              borderRadius: "8px",
+              zIndex: 1000,
+              textAlign: "center",
+              backdropFilter: "blur(3px)",
+              boxShadow: theme.shadows[5],
+            }}
+          >
+            <Typography variant="body1" sx={{ fontWeight: "medium" }}>
+              Please wait while we process the data...
+            </Typography>
+            <Typography variant="caption" sx={{ display: "block", mt: 1 }}>
+              Calculating items and identifying duplicates
+            </Typography>
+          </Box>
+        )}
 
         {/* Resize handle */}
         <Box
