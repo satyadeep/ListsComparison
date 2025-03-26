@@ -27,6 +27,10 @@ const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
   const fileInputRef = useRef(null);
   const theme = useTheme();
 
+  // Added state for worksheet handling
+  const [worksheets, setWorksheets] = useState([]);
+  const [selectedWorksheet, setSelectedWorksheet] = useState("");
+
   const handleFileChange = async (event) => {
     setErrorMessage("");
     const selectedFile = event.target.files[0];
@@ -34,6 +38,8 @@ const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
     if (!selectedFile) {
       setFile(null);
       setColumns([]);
+      setWorksheets([]);
+      setSelectedWorksheet("");
       return;
     }
 
@@ -67,32 +73,26 @@ const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
         try {
           const data = e.target.result;
           const workbook = XLSX.read(data, { type: "array" });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-          // Get column headers and format them
-          if (jsonData.length > 0) {
-            const headers = jsonData[0];
-            const columnOptions = headers.map((header, index) => ({
-              label: header || `Column ${index + 1}`,
-              value: index,
-            }));
-            setColumns(columnOptions);
+          // Extract worksheet names
+          const worksheetNames = workbook.SheetNames;
+          setWorksheets(worksheetNames);
 
-            // Automatically select the first column
-            if (columnOptions.length > 0) {
-              setSelectedColumn(columnOptions[0].value);
-            }
+          // Set the first worksheet as selected by default
+          if (worksheetNames.length > 0) {
+            setSelectedWorksheet(worksheetNames[0]);
+
+            // Load columns from the first worksheet
+            loadWorksheetColumns(workbook, worksheetNames[0]);
           } else {
-            setErrorMessage("No data found in the file.");
+            setErrorMessage("No worksheets found in the file.");
+            setLoading(false);
           }
         } catch (error) {
           console.error("Error parsing file:", error);
           setErrorMessage(
             "Error parsing the file. Make sure it's a valid Excel/CSV file."
           );
-        } finally {
           setLoading(false);
         }
       };
@@ -110,9 +110,76 @@ const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
     }
   };
 
+  // Function to load columns from a specific worksheet
+  const loadWorksheetColumns = (workbook, sheetName) => {
+    try {
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+      // Get column headers and format them
+      if (jsonData.length > 0) {
+        const headers = jsonData[0];
+        const columnOptions = headers.map((header, index) => ({
+          label: header || `Column ${index + 1}`,
+          value: index,
+        }));
+        setColumns(columnOptions);
+
+        // Automatically select the first column
+        if (columnOptions.length > 0) {
+          setSelectedColumn(columnOptions[0].value);
+        }
+      } else {
+        setErrorMessage("No data found in the selected worksheet.");
+      }
+    } catch (error) {
+      console.error("Error loading worksheet:", error);
+      setErrorMessage(`Error loading worksheet "${sheetName}".`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle worksheet change
+  const handleWorksheetChange = (event) => {
+    const newWorksheet = event.target.value;
+    setSelectedWorksheet(newWorksheet);
+    setLoading(true);
+
+    try {
+      // Re-read the file to get the new worksheet data
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        try {
+          const data = e.target.result;
+          const workbook = XLSX.read(data, { type: "array" });
+
+          // Load columns from the selected worksheet
+          loadWorksheetColumns(workbook, newWorksheet);
+        } catch (error) {
+          console.error("Error parsing file:", error);
+          setErrorMessage("Error parsing the file when changing worksheet.");
+          setLoading(false);
+        }
+      };
+
+      reader.onerror = () => {
+        setErrorMessage("Error reading the file when changing worksheet.");
+        setLoading(false);
+      };
+
+      reader.readAsArrayBuffer(file);
+    } catch (error) {
+      console.error("Worksheet change error:", error);
+      setErrorMessage("Error changing worksheet.");
+      setLoading(false);
+    }
+  };
+
   const handleImport = async () => {
-    if (!file || selectedColumn === "") {
-      setErrorMessage("Please select a file and column first.");
+    if (!file || selectedColumn === "" || !selectedWorksheet) {
+      setErrorMessage("Please select a file, worksheet, and column first.");
       return;
     }
 
@@ -128,8 +195,7 @@ const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
             try {
               const data = e.target.result;
               const workbook = XLSX.read(data, { type: "array" });
-              const sheetName = workbook.SheetNames[0];
-              const worksheet = workbook.Sheets[sheetName];
+              const worksheet = workbook.Sheets[selectedWorksheet];
               const jsonData = XLSX.utils.sheet_to_json(worksheet, {
                 header: 1,
               });
@@ -182,6 +248,8 @@ const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
     setFile(null);
     setColumns([]);
     setSelectedColumn("");
+    setWorksheets([]);
+    setSelectedWorksheet("");
     setErrorMessage("");
     setLoading(false);
     setProcessing(false);
@@ -229,24 +297,51 @@ const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
               <CircularProgress size={30} />
             </Box>
           ) : (
-            columns.length > 0 && (
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel id="column-select-label">Select Column</InputLabel>
-                <Select
-                  labelId="column-select-label"
-                  value={selectedColumn}
-                  onChange={(e) => setSelectedColumn(e.target.value)}
-                  label="Select Column"
-                  disabled={processing}
-                >
-                  {columns.map((column) => (
-                    <MenuItem key={column.value} value={column.value}>
-                      {column.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )
+            <>
+              {/* Worksheet selector */}
+              {worksheets.length > 0 && (
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                  <InputLabel id="worksheet-select-label">
+                    Select Worksheet
+                  </InputLabel>
+                  <Select
+                    labelId="worksheet-select-label"
+                    value={selectedWorksheet}
+                    onChange={handleWorksheetChange}
+                    label="Select Worksheet"
+                    disabled={processing}
+                  >
+                    {worksheets.map((worksheet) => (
+                      <MenuItem key={worksheet} value={worksheet}>
+                        {worksheet}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+
+              {/* Column selector */}
+              {columns.length > 0 && (
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                  <InputLabel id="column-select-label">
+                    Select Column
+                  </InputLabel>
+                  <Select
+                    labelId="column-select-label"
+                    value={selectedColumn}
+                    onChange={(e) => setSelectedColumn(e.target.value)}
+                    label="Select Column"
+                    disabled={processing}
+                  >
+                    {columns.map((column) => (
+                      <MenuItem key={column.value} value={column.value}>
+                        {column.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            </>
           )}
 
           {/* Processing overlay */}
@@ -298,7 +393,13 @@ const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
           onClick={handleImport}
           color="primary"
           variant="contained"
-          disabled={!file || selectedColumn === "" || loading || processing}
+          disabled={
+            !file ||
+            selectedColumn === "" ||
+            !selectedWorksheet ||
+            loading ||
+            processing
+          }
         >
           {processing ? (
             <CircularProgress size={24} color="inherit" />
