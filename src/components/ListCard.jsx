@@ -132,45 +132,27 @@ const ListCard = ({
 
   // Add a handler for removing duplicates without trimming spaces
   const handleRemoveDuplicatesOnly = () => {
-    // Implementation that properly removes all duplicates and preserves all spaces
     const lines = list.content.split("\n");
-    
-    // First collect all occurrences into a Map to count them
-    const occurrences = new Map();
-    const preservedLines = new Map(); // Map to store original line with its case preserved
-    
-    // Count occurrences
+    const seen = new Map();
+    const result = [];
+
     for (const line of lines) {
-      if (line.trim() === "") continue; // Skip empty lines
-      
-      const compareLine = caseSensitive ? line : line.toLowerCase();
-      occurrences.set(compareLine, (occurrences.get(compareLine) || 0) + 1);
-      // Always store the first occurrence with its original case
-      if (!preservedLines.has(compareLine)) {
-        preservedLines.set(compareLine, line);
-      }
-    }
-    
-    // Build result with unique lines only
-    const uniqueLines = [];
-    for (const line of lines) {
+      // Always preserve empty lines
       if (line.trim() === "") {
-        // Keep empty lines
-        uniqueLines.push(line);
+        result.push(line);
         continue;
       }
-      
+
+      // Use case-insensitive comparison if needed
       const compareLine = caseSensitive ? line : line.toLowerCase();
-      
-      // If we have this key in our preserved lines and it hasn't been added yet
-      if (preservedLines.has(compareLine) && preservedLines.get(compareLine) !== null) {
-        uniqueLines.push(preservedLines.get(compareLine));
-        // Mark as added by setting to null
-        preservedLines.set(compareLine, null);
+
+      if (!seen.has(compareLine)) {
+        result.push(line);
+        seen.set(compareLine, true);
       }
     }
 
-    onInputChange(list.id, uniqueLines.join("\n"));
+    onInputChange(list.id, result.join("\n"));
   };
 
   // Function to generate and download an Excel file with duplicates
