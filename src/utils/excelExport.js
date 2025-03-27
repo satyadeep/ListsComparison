@@ -182,22 +182,27 @@ export const exportToExcel = async (
 };
 
 /**
- * Export data to an Excel file
- * @param {Array} data - Array of objects to export
- * @param {string} fileName - Name of the Excel file
+ * Exports data to an Excel file with the given filename
+ * @param {Array} data - Array of objects representing rows of data
+ * @param {string} filename - Name for the Excel file (without extension)
  */
-export const exportDataToExcel = (data, fileName) => {
+export const exportDataToExcel = (data, filename) => {
   try {
-    // Create a worksheet from the data
+    // Create a new workbook
+    const workbook = XLSX.utils.book_new();
+
+    // Convert data to worksheet
     const worksheet = XLSX.utils.json_to_sheet(data);
 
-    // Create a workbook and append the worksheet
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+    // Add the worksheet to the workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
 
-    // Write the workbook to a file
-    XLSX.writeFile(workbook, `${fileName}.xlsx`);
+    // Generate Excel file
+    XLSX.writeFile(workbook, `${filename}.xlsx`);
+
+    return true;
   } catch (error) {
-    console.error("Failed to export to Excel:", error);
+    console.error("Error exporting to Excel:", error);
+    return false;
   }
 };

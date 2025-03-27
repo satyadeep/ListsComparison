@@ -40,6 +40,7 @@ import {
   getListColor,
 } from "../utils/listUtils";
 import ExcelCsvImportDialog from "./ExcelCsvImportDialog"; // Import the new component
+import LoadingOverlay from "./LoadingOverlay"; // Import our new LoadingOverlay component
 
 const ListCard = ({
   list,
@@ -66,6 +67,7 @@ const ListCard = ({
   const isDarkMode = theme.palette.mode === "dark";
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false); // State for processing status
+  const [calculatingStats, setCalculatingStats] = useState(false); // New state for stats calculation
   const processingTimeoutRef = useRef(null);
   const hasActiveFilter = !!list.activeFilter;
   const originalItemCount = getListItemCount(
@@ -189,28 +191,42 @@ const ListCard = ({
   const handleProcessDuplicates = () => {
     setIsProcessing(true); // Set processing state to true
     setTimeout(() => {
-      const duplicates = [];
       const lines = list.content.split("\n");
-      const seen = new Set();
-      const duplicatesSet = new Set();
+      const occurrences = {};
+      const duplicatesMap = new Map();
 
-      // Identify duplicates
+      // Count occurrences of each item
       lines.forEach((line) => {
+        if (line.trim() === "") return; // Skip empty lines
+
         const compareLine = caseSensitive ? line : line.toLowerCase();
-        if (seen.has(compareLine)) {
-          duplicatesSet.add(line); // Add original line to duplicates
-        } else {
-          seen.add(compareLine);
+        occurrences[compareLine] = (occurrences[compareLine] || 0) + 1;
+
+        // Store the original case version
+        if (!duplicatesMap.has(compareLine)) {
+          duplicatesMap.set(compareLine, line);
         }
       });
 
-      // Convert duplicatesSet to an array
-      duplicates.push(...duplicatesSet);
+      // Filter for items with more than one occurrence
+      const duplicates = [];
+      for (const [compareLine, originalLine] of duplicatesMap.entries()) {
+        if (occurrences[compareLine] > 1) {
+          duplicates.push({
+            value: originalLine,
+            count: occurrences[compareLine],
+          });
+        }
+      }
+
+      // Sort duplicates by count (most frequent first)
+      duplicates.sort((a, b) => b.count - a.count);
 
       // Prepare data for Excel export
       const data = duplicates.map((duplicate, index) => ({
         "Duplicate #": index + 1,
-        "Duplicate Value": duplicate,
+        "Duplicate Value": duplicate.value,
+        Occurrences: duplicate.count,
       }));
 
       // Export to Excel using the correct utility function
@@ -250,6 +266,7 @@ const ListCard = ({
   const handlePaste = (e) => {
     // Start processing state
     setIsProcessing(true);
+    setCalculatingStats(true); // Also set stats calculating
 
     // Get the clipboard data directly
     const clipboardData = e.clipboardData || window.clipboardData;
@@ -278,6 +295,11 @@ const ListCard = ({
       processingTimeoutRef.current = setTimeout(() => {
         setIsProcessing(false);
 
+        // Still calculating stats for a short while
+        setTimeout(() => {
+          setCalculatingStats(false);
+        }, 500);
+
         // Try to set cursor position after paste
         try {
           const newCursorPos = selectionStart + pastedText.length;
@@ -294,6 +316,7 @@ const ListCard = ({
     } else {
       // If there's no pasted text, just end processing
       setIsProcessing(false);
+      setCalculatingStats(false); // Also end stats calculating
     }
   };
 
@@ -345,12 +368,10 @@ const ListCard = ({
       <Box
         display="flex"
         justifyContent="space-between"
-        alignItems={{ xs: "flex-start", sm: "center" }}
-        flexDirection={{ xs: "column", sm: "row" }}
+        alignItems="center"
         mb={1}
-        gap={1}
       >
-        <Box display="flex" alignItems="center" flexWrap="wrap" gap={1}>
+        <Box display="flex" alignItems="center">
           <Typography
             variant="h6"
             sx={{
@@ -384,73 +405,86 @@ const ListCard = ({
                 color: "white",
               }}
             />
-            <Tooltip title="Click to download duplicates as an Excel file">
-              <Chip
-                label={`Duplicates: ${getDuplicatesCount(
-                  getListContent(list.id),
-                  compareMode
-                )}`}
-                size="small"
-                onClick={handleProcessDuplicates} // Trigger processing duplicates
-                sx={{
-                  fontWeight: "bold",
-                  bgcolor: "error.main",
-                  color: "white",
-                  cursor: "pointer", // Add pointer cursor for better UX
-                  "&:hover": {
-                    bgcolor: theme.palette.error.light, // Use a lighter error color for hover
-                  },
-                }}
-              />
-            </Tooltip>
-            {hasActiveFilter && (
-              <Chip
-                label="Filtered"
-                size="small"
-                color="warning"
-                sx={{ fontWeight: "bold" }}
-              />
-            )}
           </Box>
         </Box>
-
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-          {/* Filter button */}
-          <Tooltip title={hasActiveFilter ? "Edit Filter" : "Filter List"}>
-            <IconButton
-              color={hasActiveFilter ? "warning" : "default"}
+        <Box display="flex" gap={1} flexWrap="wrap">
+          <Chip
+            label={`Total: ${filteredItemCount}${
+              hasActiveFilter ? ` / ${originalItemCount}` : ""
+            }`}
+            size="small"
+            sx={{
+              fontWeight: "bold",
+              bgcolor: getBorderColor(),
+              color: "white",
+            }}
+          />
+          <Tooltip title="Click to download duplicates as an Excel file">
+            <Chip
+              label={`Duplicates: ${getDuplicatesCount(
+                getListContent(list.id),
+                compareMode
+              )}`}
               size="small"
-              onClick={() => onOpenFilter(list)}
-              sx={{ mr: 1 }}
-            >
-              <Badge color="warning" variant="dot" invisible={!hasActiveFilter}>
-                <FilterListIcon fontSize="small" />
-              </Badge>
-            </IconButton>
+              onClick={handleProcessDuplicates} // Trigger processing duplicates
+              sx={{
+                fontWeight: "bold",
+                bgcolor: "error.main",
+                color: "white",
+                cursor: "pointer", // Add pointer cursor for better UX
+                "&:hover": {
+                  bgcolor: theme.palette.error.light, // Use a lighter error color for hover
+                },
+              }}
+            />
           </Tooltip>
-
-          {/* Settings button */}
-          <Tooltip title="List Settings">
-            <IconButton
+          {hasActiveFilter && (
+            <Chip
+              label="Filtered"
               size="small"
-              onClick={() => onOpenSettings(list)}
-              sx={{ mr: 1 }}
-            >
-              <SettingsIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-
-          {/* Delete button */}
-          {canRemove && (
-            <IconButton
-              color="error"
-              onClick={() => onRemove(list.id)}
-              size="small"
-            >
-              <DeleteIcon />
-            </IconButton>
+              color="warning"
+              sx={{ fontWeight: "bold" }}
+            />
           )}
         </Box>
+      </Box>
+
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+        {/* Filter button */}
+        <Tooltip title={hasActiveFilter ? "Edit Filter" : "Filter List"}>
+          <IconButton
+            color={hasActiveFilter ? "warning" : "default"}
+            size="small"
+            onClick={() => onOpenFilter(list)}
+            sx={{ mr: 1 }}
+          >
+            <Badge color="warning" variant="dot" invisible={!hasActiveFilter}>
+              <FilterListIcon fontSize="small" />
+            </Badge>
+          </IconButton>
+        </Tooltip>
+
+        {/* Settings button */}
+        <Tooltip title="List Settings">
+          <IconButton
+            size="small"
+            onClick={() => onOpenSettings(list)}
+            sx={{ mr: 1 }}
+          >
+            <SettingsIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+
+        {/* Delete button */}
+        {canRemove && (
+          <IconButton
+            color="error"
+            onClick={() => onRemove(list.id)}
+            size="small"
+          >
+            <DeleteIcon />
+          </IconButton>
+        )}
       </Box>
 
       {/* Show alert if filtered */}

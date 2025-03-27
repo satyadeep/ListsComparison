@@ -16,6 +16,7 @@ import {
   useTheme,
 } from "@mui/material";
 import * as XLSX from "xlsx";
+import LoadingOverlay from "./LoadingOverlay";
 
 const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
   const [file, setFile] = useState(null);
@@ -270,7 +271,14 @@ const ExcelCsvImportDialog = ({ open, onClose, onColumnSelected }) => {
       fullWidth
     >
       <DialogTitle>Import from Excel/CSV</DialogTitle>
-      <DialogContent>
+      <DialogContent sx={{ position: "relative" }}>
+        {/* Add loading overlay */}
+        {loading && (
+          <LoadingOverlay
+            message="Processing data..."
+            subMessage="Reading file and extracting data"
+          />
+        )}
         {errorMessage && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {errorMessage}

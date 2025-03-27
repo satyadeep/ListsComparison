@@ -10,6 +10,7 @@ import {
   Typography,
   Box,
   Paper,
+  Button,
 } from "@mui/material";
 import ThemeToggle from "./ThemeToggle";
 import ImportExportButtons from "./ImportExportButtons";
@@ -35,6 +36,8 @@ import {
 import { saveConfiguration, loadConfiguration } from "../utils/dbUtils";
 import { applyFilter } from "../utils/filterUtils"; // Add this import
 import VisualizationSection from "./visualizations/VisualizationSection";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import LoadingOverlay from "./LoadingOverlay";
 
 function AppContent() {
   // State declarations (keeping all the state here for now)
@@ -741,6 +744,38 @@ function AppContent() {
       });
     }
   }, [lists, setLists, setImmediateInputs, setSelectedLists]);
+
+  const [showVisualizations, setShowVisualizations] = useState(false);
+  const [loadingVisualizations, setLoadingVisualizations] = useState(false);
+  const [loadingConfiguration, setLoadingConfiguration] = useState(false);
+
+  // Update the loadConfiguration function to show loading state
+  const loadConfiguration = (configName) => {
+    setLoadingConfiguration(true);
+
+    try {
+      // ...existing code...
+
+      // Add delay to ensure loading UI is visible
+      setTimeout(() => {
+        setLoadingConfiguration(false);
+      }, 1000);
+    } catch (error) {
+      console.error("Error loading configuration:", error);
+      setLoadingConfiguration(false);
+    }
+  };
+
+  // Function to handle showing visualizations
+  const handleShowVisualizations = () => {
+    setLoadingVisualizations(true);
+    setShowVisualizations(true);
+
+    // Simulate calculation time with a delay
+    setTimeout(() => {
+      setLoadingVisualizations(false);
+    }, 2000); // Longer delay to show loading state
+  };
 
   return (
     <>
