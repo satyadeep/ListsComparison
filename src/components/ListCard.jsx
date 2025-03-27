@@ -377,9 +377,33 @@ const ListCard = ({
         borderLeft: `4px solid ${getBorderColor()}`,
         width: "100%",
         color: theme.palette.text.primary,
-        position: "relative", // Added for absolute positioning of resize handle
+        position: "relative", // Ensure proper positioning for overlay
       }}
     >
+      {/* Deleting overlay - position over the entire list card */}
+      {isDeleting && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1100, // Higher z-index to cover all elements
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(3px)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            borderRadius: "inherit", // Match parent border radius
+          }}
+        >
+          <LoadingOverlay
+            message="Deleting list..."
+            subMessage="Please wait while we remove this list"
+          />
+        </Box>
+      )}
       <Box
         display="flex"
         justifyContent="space-between"

@@ -38,24 +38,28 @@ const ControlPanel = ({
   const [isAddingList, setIsAddingList] = useState(false);
   const [addingCategory, setAddingCategory] = useState(null);
 
-  // Enhanced function to handle adding a list with loading state
+  // Simplified function for adding a new list
   const handleAddList = (category = "Default") => {
-    // Check if we can add more lists
     if (lists.length < 5) {
-      // Dispatch a custom event to notify ListsSection to show a placeholder
-      window.dispatchEvent(
-        new CustomEvent("addList", {
+      setIsAddingList(true);
+      setAddingCategory(category);
+
+      // First show placeholder
+      document.dispatchEvent(
+        new CustomEvent("showNewListPlaceholder", {
           detail: { category },
         })
       );
 
-      // Use requestAnimationFrame to ensure UI updates before processing
-      requestAnimationFrame(() => {
-        // Small delay to ensure placeholder is displayed
-        setTimeout(() => {
-          onAddList(category);
-        }, 300);
-      });
+      // Then after a short delay, create the list and hide the placeholder
+      setTimeout(() => {
+        // Create the list
+        onAddList(category);
+
+        // Hide placeholder
+        document.dispatchEvent(new CustomEvent("hideNewListPlaceholder"));
+        setIsAddingList(false);
+      }, 600);
     }
   };
 

@@ -163,13 +163,13 @@ const CustomComparisonSection = ({
     };
   }, []);
 
-  // Simplify the click handlers - use imperative approach for immediate UI update
+  // Simplify the click handlers for intersection operation with better feedback
   const handleIntersectionClick = () => {
     setComparisonType("intersection");
 
     // Only show overlay if enough lists selected
     if (selectedLists.length >= 2) {
-      // Create and directly apply an overlay
+      // Create and directly apply an overlay with improved styling and messaging
       const overlayDiv = document.createElement("div");
       overlayDiv.id = "temp-overlay";
       overlayDiv.style.cssText = `
@@ -186,26 +186,36 @@ const CustomComparisonSection = ({
         justify-content: center;
         z-index: 1000;
         backdrop-filter: blur(3px);
+        transition: opacity 0.2s ease-in-out;
       `;
 
-      // Add content
+      // Add enhanced content with better spinner animation
       overlayDiv.innerHTML = `
         <div style="margin-bottom: 16px;">
-          <svg width="40" height="40" viewBox="0 0 40 40">
-            <circle cx="20" cy="20" r="18" fill="none" stroke="#90caf9" stroke-width="4" 
+          <svg width="50" height="50" viewBox="0 0 50 50">
+            <circle cx="25" cy="25" r="20" fill="none" stroke="#8c6bc4" stroke-width="4" 
               style="animation: spin 1s linear infinite; transform-origin: center;" />
+            <circle cx="25" cy="25" r="10" fill="none" stroke="#d1c4e9" stroke-width="3" 
+              style="animation: pulse 1.5s ease-in-out infinite; transform-origin: center;" />
           </svg>
         </div>
-        <div style="font-weight: 500; font-size: 16px;">Calculating intersection...</div>
-        <div style="margin-top: 8px; font-size: 14px;">Finding common items between selected lists</div>
+        <div style="font-weight: 600; font-size: 18px; color: #8c6bc4;">Calculating intersection...</div>
+        <div style="margin-top: 8px; font-size: 14px; max-width: 260px; text-align: center;">
+          Finding common items between selected lists
+        </div>
       `;
 
-      // Add animation style
+      // Add enhanced animation style
       const style = document.createElement("style");
       style.textContent = `
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0% { opacity: 0.3; }
+          50% { opacity: 1; }
+          100% { opacity: 0.3; }
         }
       `;
       document.head.appendChild(style);
@@ -218,10 +228,12 @@ const CustomComparisonSection = ({
         paperElement.style.position = "relative";
         paperElement.appendChild(overlayDiv);
 
-        // Remove after a delay
+        // Fade out animation before removing
         setTimeout(() => {
           if (document.getElementById("temp-overlay")) {
-            document.getElementById("temp-overlay").remove();
+            const overlay = document.getElementById("temp-overlay");
+            overlay.style.opacity = "0";
+            setTimeout(() => overlay.remove(), 200);
           }
         }, 1000);
       }

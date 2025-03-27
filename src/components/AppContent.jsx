@@ -11,6 +11,7 @@ import {
   Box,
   Paper,
   Button,
+  CircularProgress,
 } from "@mui/material";
 import ThemeToggle from "./ThemeToggle";
 import ImportExportButtons from "./ImportExportButtons";
@@ -617,20 +618,32 @@ function AppContent() {
     }
   }, []);
 
-  // Updated function to add a list with custom name and category
-  const handleAddList = useCallback(
-    (category = "Default") => {
-      if (lists.length < 5) {
-        const defaultName = getDefaultListName(lists);
-        setLists([
-          ...lists,
-          { id: nextId, name: defaultName, content: "", category },
-        ]);
-        setNextId(nextId + 1);
-      }
-    },
-    [lists, nextId, getDefaultListName]
-  );
+  // Function to get a new unique ID for lists
+  const getNewId = () => {
+    const id = nextId;
+    setNextId(id + 1);
+    return id;
+  };
+
+  // Function to add a new list
+  const handleAddList = (category = "Default") => {
+    // Create a new list with the next available ID
+    const newList = {
+      id: getNewId(),
+      category: category,
+      content: "",
+    };
+
+    // Add it to the lists
+    setLists([...lists, newList]);
+
+    // Signal that the list is ready
+    setTimeout(() => {
+      document.dispatchEvent(new CustomEvent("hideNewListPlaceholder"));
+    }, 500);
+
+    return newList.id;
+  };
 
   // Handle opening the filter dialog
   const handleOpenFilterDialog = useCallback((list) => {

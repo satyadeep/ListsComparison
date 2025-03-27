@@ -1,9 +1,9 @@
 import React, { useCallback, useState, useEffect } from "react";
-import { Grid, Paper, Typography, Divider, Box, Chip } from "@mui/material";
+import { Grid, Paper, Typography, Divider, Box } from "@mui/material";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import ListCard from "./ListCard";
 import CategoryHeader from "./CategoryHeader";
-import LoadingOverlay from "./LoadingOverlay";
+import ListPlaceholder from "./ListPlaceholder";
 import { removeList, parseInput, removeDuplicates } from "../utils/listUtils";
 
 const ListsSection = ({
@@ -13,7 +13,7 @@ const ListsSection = ({
   caseSensitive,
   onOpenFilterDialog,
   onOpenSettings,
-  onOpenRenameDialog, // Add this prop
+  onOpenRenameDialog,
   onInputChange,
   onCopyToClipboard,
   getListContent,
@@ -23,50 +23,34 @@ const ListsSection = ({
   onDeleteCategory,
 }) => {
   const muiTheme = useMuiTheme();
-  const isDarkMode = muiTheme.palette.mode === "dark";
-  const [addingListInfo, setAddingListInfo] = useState({
-    adding: false,
-    category: null,
-  });
+  const [showPlaceholder, setShowPlaceholder] = useState(false);
+  const [placeholderCategory, setPlaceholderCategory] = useState("Default");
 
-  // Listen for changes in the lists array to detect when a new list is added
+  // Add event listeners for placeholder visibility
   useEffect(() => {
-    // If we're currently showing the adding placeholder and the list has been added
-    if (addingListInfo.adding) {
-      // Hide placeholder immediately when groupedLists changes
-      setAddingListInfo({ adding: false, category: null });
-    }
-  }, [groupedLists]);
-
-  // Function to signal that a list is being added to a category
-  const setAddingList = (category) => {
-    setAddingListInfo({ adding: true, category });
-    
-    // Use requestAnimationFrame to ensure the DOM is updated before scrolling
-    requestAnimationFrame(() => {
-      // Find the placeholder element and scroll to it
-      const placeholderElement = document.getElementById(`list-placeholder-${category}`);
-      if (placeholderElement) {
-        placeholderElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    });
-  };
-
-  // Add this effect to listen for new list addition
-  useEffect(() => {
-    // Set up an event listener for adding lists
-    const handleAddListEvent = (event) => {
-      if (event.detail && event.detail.category) {
-        setAddingList(event.detail.category);
-      }
+    const handleShowPlaceholder = (e) => {
+      console.log("Show placeholder event received", e.detail);
+      setShowPlaceholder(true);
+      setPlaceholderCategory(e.detail?.category || "Default");
     };
 
-    // Add the event listener
-    window.addEventListener("addList", handleAddListEvent);
+    const handleHidePlaceholder = () => {
+      console.log("Hide placeholder event received");
+      setShowPlaceholder(false);
+    };
 
-    // Clean up the event listener
+    document.addEventListener("showNewListPlaceholder", handleShowPlaceholder);
+    document.addEventListener("hideNewListPlaceholder", handleHidePlaceholder);
+
     return () => {
-      window.removeEventListener("addList", handleAddListEvent);
+      document.removeEventListener(
+        "showNewListPlaceholder",
+        handleShowPlaceholder
+      );
+      document.removeEventListener(
+        "hideNewListPlaceholder",
+        handleHidePlaceholder
+      );
     };
   }, []);
 
@@ -278,52 +262,12 @@ const ListsSection = ({
                     );
                   })}
 
-                  {/* Add placeholder when a new list is being added to this category */}
-                  {addingListInfo.adding &&
-                    addingListInfo.category === category && (
-                      <Grid item xs={12} md={6} sx={{ width: "100%" }}>
-                        <Paper
-                          id={`list-placeholder-${category}`}
-                          elevation={3}
-                          sx={{
-                            p: { xs: 1, sm: 2 },
-                            position: "relative",
-                            borderLeft: "4px solid #1976d2",
-                            backgroundColor:
-                              muiTheme.palette.mode === "dark"
-                                ? "rgba(25, 118, 210, 0.08)"
-                                : "rgba(25, 118, 210, 0.04)",
-                            minHeight: "250px",
-                          }}
-                        >
-                          <Box
-                            display="flex"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            mb={1}
-                          >
-                            <Typography variant="h6">
-                              Creating new list...
-                            </Typography>
-                          </Box>
-
-                          <Box
-                            sx={{
-                              height: "150px",
-                              backgroundColor:
-                                muiTheme.palette.background.paper,
-                              borderRadius: 1,
-                              border: `1px solid ${muiTheme.palette.divider}`,
-                            }}
-                          />
-
-                          <LoadingOverlay
-                            message="Adding new list..."
-                            subMessage="Please wait while we prepare your new list"
-                          />
-                        </Paper>
-                      </Grid>
-                    )}
+                  {/* Show placeholder for this category when needed */}
+                  {showPlaceholder && placeholderCategory === category && (
+                    <Grid item xs={12} md={6} sx={{ width: "100%" }}>
+                      <ListPlaceholder active={true} category={category} />
+                    </Grid>
+                  )}
                 </Grid>
               </Paper>
             </Grid>
