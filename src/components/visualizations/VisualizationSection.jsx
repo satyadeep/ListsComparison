@@ -64,12 +64,12 @@ const VisualizationSection = ({
     // Both states immediately in a single batch
     setShowVisualizations(true);
     setLoadingVisualizations(true);
-    
+
     // Longer delay to ensure visualizations are fully rendered
     setTimeout(() => {
       // First make the visualizations ready
       setVisualizationsReady(true);
-      
+
       // Keep overlay visible for additional time to ensure charts are rendered
       setTimeout(() => {
         setLoadingVisualizations(false);
@@ -133,51 +133,51 @@ const VisualizationSection = ({
         </Button>
       </Box>
 
-      {/* Visualization containers as placeholders */}
-      <Paper elevation={3} sx={{ p: 2, mb: 3, minHeight: "300px" }} />
-      <Paper elevation={3} sx={{ p: 2, mb: 3, minHeight: "300px" }} />
+      {/* First visualization container - Venn diagram */}
+      <Paper
+        elevation={3}
+        sx={{ p: 2, mb: 3, minHeight: "300px", position: "relative" }}
+      >
+        {visualizationsReady && (
+          <VennDiagram
+            lists={lists}
+            results={results}
+            showTooltips={showTooltips}
+            compareMode={compareMode}
+            caseSensitive={caseSensitive}
+          />
+        )}
 
-      {/* Only show actual visualizations when ready */}
-      {visualizationsReady && (
-        <>
-          <Box
-            sx={{
-              position: "absolute",
-              top: 50,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 5,
-            }}
-          >
-            <Paper elevation={3} sx={{ p: 2, mb: 3, minHeight: "300px" }}>
-              <VennDiagram
-                lists={lists}
-                results={results}
-                showTooltips={showTooltips}
-                compareMode={compareMode}
-                caseSensitive={caseSensitive}
-              />
-            </Paper>
+        {/* Loading overlay specific to Venn diagram */}
+        {(loadingVisualizations || !visualizationsReady) && (
+          <LoadingOverlay
+            message="Generating Venn diagram..."
+            subMessage="Creating visual representation of list relationships"
+          />
+        )}
+      </Paper>
 
-            <Paper elevation={3} sx={{ p: 2, mb: 3, minHeight: "300px" }}>
-              <ListStatistics
-                lists={lists}
-                results={results}
-                showTooltips={showTooltips}
-              />
-            </Paper>
-          </Box>
-        </>
-      )}
+      {/* Second visualization container - Statistics */}
+      <Paper
+        elevation={3}
+        sx={{ p: 2, mb: 3, minHeight: "300px", position: "relative" }}
+      >
+        {visualizationsReady && (
+          <ListStatistics
+            lists={lists}
+            results={results}
+            showTooltips={showTooltips}
+          />
+        )}
 
-      {/* Loading overlay always visible when loading */}
-      {loadingVisualizations && (
-        <LoadingOverlay
-          message="Generating visualizations..."
-          subMessage="Analyzing data and creating charts"
-        />
-      )}
+        {/* Loading overlay specific to statistics section */}
+        {(loadingVisualizations || !visualizationsReady) && (
+          <LoadingOverlay
+            message="Generating statistical analysis..."
+            subMessage="Calculating metrics and preparing charts"
+          />
+        )}
+      </Paper>
     </Box>
   );
 };

@@ -163,52 +163,122 @@ const CustomComparisonSection = ({
     };
   }, []);
 
-  // Direct click handlers for intersection and union operations
+  // Simplify the click handlers - use imperative approach for immediate UI update
   const handleIntersectionClick = () => {
-    // First update the comparison type
     setComparisonType("intersection");
 
-    // Show overlay immediately if we have enough lists selected
+    // Only show overlay if enough lists selected
     if (selectedLists.length >= 2) {
-      // Set overlay message immediately before showing overlay
-      setOverlayMessage({
-        message: "Calculating intersection...",
-        subMessage: "Finding common items between selected lists",
-      });
+      // Create and directly apply an overlay
+      const overlayDiv = document.createElement("div");
+      overlayDiv.id = "temp-overlay";
+      overlayDiv.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        backdrop-filter: blur(3px);
+      `;
 
-      // Show overlay after message is set
-      setTimeout(() => {
-        setIsCalculating(true);
+      // Add content
+      overlayDiv.innerHTML = `
+        <div style="margin-bottom: 16px;">
+          <svg width="40" height="40" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="18" fill="none" stroke="#90caf9" stroke-width="4" 
+              style="animation: spin 1s linear infinite; transform-origin: center;" />
+          </svg>
+        </div>
+        <div style="font-weight: 500; font-size: 16px;">Calculating intersection...</div>
+        <div style="margin-top: 8px; font-size: 14px;">Finding common items between selected lists</div>
+      `;
 
-        // Hide loading state after a brief delay
+      // Add animation style
+      const style = document.createElement("style");
+      style.textContent = `
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `;
+      document.head.appendChild(style);
+
+      // Find the Paper element in CustomComparisonSection
+      const paperElement = document.querySelector(
+        '[data-testid="custom-comparison-paper"]'
+      );
+      if (paperElement) {
+        paperElement.style.position = "relative";
+        paperElement.appendChild(overlayDiv);
+
+        // Remove after a delay
         setTimeout(() => {
-          setIsCalculating(false);
+          if (document.getElementById("temp-overlay")) {
+            document.getElementById("temp-overlay").remove();
+          }
         }, 1000);
-      }, 0);
+      }
     }
   };
 
   const handleUnionClick = () => {
-    // First update the comparison type
     setComparisonType("union");
 
-    // Show overlay immediately if we have enough lists selected
+    // Only show overlay if enough lists selected
     if (selectedLists.length >= 2) {
-      // Set overlay message immediately before showing overlay
-      setOverlayMessage({
-        message: "Calculating union...",
-        subMessage: "Combining all unique items from selected lists",
-      });
+      // Same approach but with union message
+      const overlayDiv = document.createElement("div");
+      overlayDiv.id = "temp-overlay";
+      overlayDiv.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        backdrop-filter: blur(3px);
+      `;
 
-      // Show overlay after message is set
-      setTimeout(() => {
-        setIsCalculating(true);
+      // Add content with union message
+      overlayDiv.innerHTML = `
+        <div style="margin-bottom: 16px;">
+          <svg width="40" height="40" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="18" fill="none" stroke="#90caf9" stroke-width="4" 
+              style="animation: spin 1s linear infinite; transform-origin: center;" />
+          </svg>
+        </div>
+        <div style="font-weight: 500; font-size: 16px;">Calculating union...</div>
+        <div style="margin-top: 8px; font-size: 14px;">Combining all unique items from selected lists</div>
+      `;
 
-        // Hide loading state after a brief delay
+      // Find the Paper element and append overlay
+      const paperElement = document.querySelector(
+        '[data-testid="custom-comparison-paper"]'
+      );
+      if (paperElement) {
+        paperElement.style.position = "relative";
+        paperElement.appendChild(overlayDiv);
+
+        // Remove after a delay
         setTimeout(() => {
-          setIsCalculating(false);
+          if (document.getElementById("temp-overlay")) {
+            document.getElementById("temp-overlay").remove();
+          }
         }, 1000);
-      }, 0);
+      }
     }
   };
 
@@ -386,6 +456,7 @@ const CustomComparisonSection = ({
           color: theme.palette.text.primary,
           position: "relative", // Add position relative for the overlay
         }}
+        data-testid="custom-comparison-paper"
       >
         <Box
           display="flex"
