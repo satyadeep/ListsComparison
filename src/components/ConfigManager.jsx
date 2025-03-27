@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Button,
   Dialog,
@@ -17,12 +17,14 @@ import SaveIcon from "@mui/icons-material/Save";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { getAllConfigurations, deleteConfiguration } from "../utils/dbUtils";
+import LoadingOverlay from "./LoadingOverlay"; // Add LoadingOverlay import
 
 const ConfigManager = ({ onSave, onLoad }) => {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [loadDialogOpen, setLoadDialogOpen] = useState(false);
   const [configName, setConfigName] = useState("");
   const [configurations, setConfigurations] = useState([]);
+  const [loadingConfig, setLoadingConfig] = useState(false); // Add loading state
 
   const handleSaveClick = () => {
     setSaveDialogOpen(true);
@@ -46,9 +48,20 @@ const ConfigManager = ({ onSave, onLoad }) => {
     }
   };
 
+  // Fix the handleLoad function to show loading state
   const handleLoad = (config) => {
-    onLoad(config);
-    setLoadDialogOpen(false);
+    setLoadingConfig(true); // Start loading state
+    setLoadDialogOpen(false); // Close dialog first
+
+    // Small delay to ensure UI updates before potentially heavy processing
+    setTimeout(() => {
+      onLoad(config);
+
+      // Keep loading state active for a short period
+      setTimeout(() => {
+        setLoadingConfig(false);
+      }, 1000);
+    }, 100);
   };
 
   const handleDelete = async (id, event) => {
@@ -147,6 +160,24 @@ const ConfigManager = ({ onSave, onLoad }) => {
           <Button onClick={() => setLoadDialogOpen(false)}>Cancel</Button>
         </DialogActions>
       </Dialog>
+
+      {loadingConfig && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 9999,
+          }}
+        >
+          <LoadingOverlay
+            message="Loading configuration..."
+            subMessage="Please wait while we load your saved settings"
+          />
+        </Box>
+      )}
     </>
   );
 };

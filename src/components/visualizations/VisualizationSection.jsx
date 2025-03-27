@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Container,
@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import VennDiagram from "./VennDiagram";
 import ListStatistics from "./ListStatistics";
 import LoadingOverlay from "../LoadingOverlay";
@@ -26,19 +27,64 @@ const VisualizationSection = ({
   const [showTooltips, setShowTooltips] = useState(true);
   const [showVisualizations, setShowVisualizations] = useState(false);
   const [loadingVisualizations, setLoadingVisualizations] = useState(false);
+  const [visualizationsReady, setVisualizationsReady] = useState(false);
+  const visualizationComponents = useRef({
+    vennsReady: false,
+    statsReady: false,
+  });
   const theme = useTheme();
 
-  // Function to handle showing visualizations
-  const handleShowVisualizations = () => {
-    setLoadingVisualizations(true);
-    setShowVisualizations(true);
+  // Function to check if all visualizations are ready
+  const checkAllVisualizationsReady = () => {
+    if (
+      visualizationComponents.current.vennsReady &&
+      visualizationComponents.current.statsReady
+    ) {
+      // Small delay to ensure all rendering is complete before showing
+      setTimeout(() => {
+        setVisualizationsReady(true);
+        setLoadingVisualizations(false);
+      }, 300);
+    }
+  };
 
-    // Simulate calculation time with a longer delay
+  // Create handlers for when each visualization finishes rendering
+  const handleVennDiagramReady = () => {
+    visualizationComponents.current.vennsReady = true;
+    checkAllVisualizationsReady();
+  };
+
+  const handleStatisticsReady = () => {
+    visualizationComponents.current.statsReady = true;
+    checkAllVisualizationsReady();
+  };
+
+  // Direct function to handle showing visualizations - no complex state management
+  const handleShowVisualizations = () => {
+    // Both states immediately in a single batch
+    setShowVisualizations(true);
+    setLoadingVisualizations(true);
+    
+    // Longer delay to ensure visualizations are fully rendered
     setTimeout(() => {
-      setLoadingVisualizations(false);
+      // First make the visualizations ready
+      setVisualizationsReady(true);
+      
+      // Keep overlay visible for additional time to ensure charts are rendered
+      setTimeout(() => {
+        setLoadingVisualizations(false);
+      }, 1500);
     }, 2000);
   };
 
+  // Add function to handle hiding visualizations
+  const handleHideVisualizations = () => {
+    setShowVisualizations(false);
+    setVisualizationsReady(false);
+    visualizationComponents.current = { vennsReady: false, statsReady: false };
+  };
+
+  // If not showing visualizations, just show the button
   if (!showVisualizations) {
     return (
       <Box sx={{ mt: 6, mb: 4 }}>
@@ -62,67 +108,70 @@ const VisualizationSection = ({
     );
   }
 
-  if (!lists || lists.length === 0 || !results || results.length === 0) {
-    return null;
-  }
-
+  // Render visualizations with immediate placeholders
   return (
-    <Box sx={{ mt: 6, mb: 2, width: "100%", px: 0 }}>
-      <Typography variant="h5" gutterBottom>
-        Visual Data Analysis
-      </Typography>
-      <Divider sx={{ mb: 2 }} />
-
-      {/* Tooltip Control */}
-      <Paper
-        elevation={1}
+    <Box sx={{ mt: 6, mb: 4, position: "relative" }}>
+      <Box
         sx={{
-          p: 1.5,
-          mb: 3,
           display: "flex",
-          alignItems: "center",
           justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 1,
+          alignItems: "center",
+          mb: 2,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <InfoOutlinedIcon color="info" fontSize="small" />
-          <Typography variant="body2">
-            Hover over chart elements to see the actual data items
-          </Typography>
-        </Box>
+        <Typography variant="h5">Visualizations</Typography>
 
-        <FormControlLabel
-          control={
-            <Switch
-              checked={showTooltips}
-              onChange={(e) => setShowTooltips(e.target.checked)}
-              color="primary"
-            />
-          }
-          label="Show Data Tooltips"
-          sx={{ m: 0 }}
-        />
-      </Paper>
+        {/* Add hide visualizations button */}
+        <Button
+          variant="outlined"
+          color="primary"
+          size="small"
+          onClick={handleHideVisualizations}
+          startIcon={<VisibilityOffIcon />}
+        >
+          Hide Visualizations
+        </Button>
+      </Box>
 
-      {/* Pass compareMode and caseSensitive to VennDiagram */}
-      <VennDiagram
-        lists={lists}
-        results={results}
-        showTooltips={showTooltips}
-        compareMode={compareMode}
-        caseSensitive={caseSensitive}
-      />
+      {/* Visualization containers as placeholders */}
+      <Paper elevation={3} sx={{ p: 2, mb: 3, minHeight: "300px" }} />
+      <Paper elevation={3} sx={{ p: 2, mb: 3, minHeight: "300px" }} />
 
-      {/* Statistics Charts */}
-      <ListStatistics
-        lists={lists}
-        results={results}
-        showTooltips={showTooltips}
-      />
+      {/* Only show actual visualizations when ready */}
+      {visualizationsReady && (
+        <>
+          <Box
+            sx={{
+              position: "absolute",
+              top: 50,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 5,
+            }}
+          >
+            <Paper elevation={3} sx={{ p: 2, mb: 3, minHeight: "300px" }}>
+              <VennDiagram
+                lists={lists}
+                results={results}
+                showTooltips={showTooltips}
+                compareMode={compareMode}
+                caseSensitive={caseSensitive}
+              />
+            </Paper>
 
-      {/* Loading overlay while calculating visualizations */}
+            <Paper elevation={3} sx={{ p: 2, mb: 3, minHeight: "300px" }}>
+              <ListStatistics
+                lists={lists}
+                results={results}
+                showTooltips={showTooltips}
+              />
+            </Paper>
+          </Box>
+        </>
+      )}
+
+      {/* Loading overlay always visible when loading */}
       {loadingVisualizations && (
         <LoadingOverlay
           message="Generating visualizations..."

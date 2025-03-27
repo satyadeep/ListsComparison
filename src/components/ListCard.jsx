@@ -28,6 +28,7 @@ import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutli
 import TableViewIcon from "@mui/icons-material/TableView"; // New icon for Excel/CSV import
 import ContentCutIcon from "@mui/icons-material/ContentCut"; // Added for trim spaces functionality
 import DragHandleIcon from "@mui/icons-material/DragHandle"; // Import drag handle icon
+import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline"; // New icon for deleting list
 import { exportDataToExcel } from "../utils/excelExport"; // Use the correct utility function
 import {
   getListItemCount,
@@ -68,6 +69,7 @@ const ListCard = ({
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false); // State for processing status
   const [calculatingStats, setCalculatingStats] = useState(false); // New state for stats calculation
+  const [isDeleting, setIsDeleting] = useState(false);
   const processingTimeoutRef = useRef(null);
   const hasActiveFilter = !!list.activeFilter;
   const originalItemCount = getListItemCount(
@@ -353,6 +355,19 @@ const ListCard = ({
     }
   };
 
+  // Handle list deletion with loading overlay
+  const handleRemoveList = () => {
+    setIsDeleting(true);
+
+    // Use requestAnimationFrame to ensure UI updates before processing
+    requestAnimationFrame(() => {
+      // Small delay to ensure the loading overlay is shown
+      setTimeout(() => {
+        onRemove(list.id);
+      }, 100);
+    });
+  };
+
   return (
     <Paper
       elevation={3}
@@ -475,15 +490,18 @@ const ListCard = ({
           </IconButton>
         </Tooltip>
 
-        {/* Delete button */}
+        {/* Delete button with new icon and tooltip */}
         {canRemove && (
-          <IconButton
-            color="error"
-            onClick={() => onRemove(list.id)}
-            size="small"
-          >
-            <DeleteIcon />
-          </IconButton>
+          <Tooltip title="Delete this list from the comparison">
+            <IconButton
+              color="error"
+              onClick={handleRemoveList}
+              size="small"
+              disabled={isDeleting}
+            >
+              <RemoveCircleOutlineIcon />
+            </IconButton>
+          </Tooltip>
         )}
       </Box>
 
@@ -574,6 +592,14 @@ const ListCard = ({
               Calculating items and identifying duplicates
             </Typography>
           </Box>
+        )}
+
+        {/* Show deleting overlay */}
+        {isDeleting && (
+          <LoadingOverlay
+            message="Deleting list..."
+            subMessage="Please wait while we remove this list"
+          />
         )}
 
         {/* Resize handle */}

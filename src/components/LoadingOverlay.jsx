@@ -29,10 +29,18 @@ const LoadingOverlay = ({
         thickness={4}
         sx={{ mb: 2 }}
       />
-      <Typography variant="body1" sx={{ fontWeight: "medium" }}>
+      <Typography
+        variant="body1"
+        sx={{ fontWeight: "medium" }}
+        id="overlay-message-container"
+      >
         {message}
       </Typography>
-      <Typography variant="caption" sx={{ display: "block", mt: 1 }}>
+      <Typography
+        variant="caption"
+        sx={{ display: "block", mt: 1 }}
+        id="overlay-submessage-container"
+      >
         {subMessage}
       </Typography>
     </Box>

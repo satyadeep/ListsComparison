@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   FormLabel,
@@ -20,6 +20,7 @@ import {
   handleModeChange,
   handleCaseSensitivityChange,
 } from "../utils/listUtils";
+import LoadingOverlay from "./LoadingOverlay";
 
 const ControlPanel = ({
   compareMode,
@@ -34,6 +35,29 @@ const ControlPanel = ({
   const theme = useTheme();
   const isXsScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const isMobile = useMediaQuery("(max-width:480px)");
+  const [isAddingList, setIsAddingList] = useState(false);
+  const [addingCategory, setAddingCategory] = useState(null);
+
+  // Enhanced function to handle adding a list with loading state
+  const handleAddList = (category = "Default") => {
+    // Check if we can add more lists
+    if (lists.length < 5) {
+      // Dispatch a custom event to notify ListsSection to show a placeholder
+      window.dispatchEvent(
+        new CustomEvent("addList", {
+          detail: { category },
+        })
+      );
+
+      // Use requestAnimationFrame to ensure UI updates before processing
+      requestAnimationFrame(() => {
+        // Small delay to ensure placeholder is displayed
+        setTimeout(() => {
+          onAddList(category);
+        }, 300);
+      });
+    }
+  };
 
   return (
     <Paper
@@ -172,16 +196,18 @@ const ControlPanel = ({
               width: isMobile ? "100%" : "auto",
             }}
           >
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => onAddList("Default")}
-              disabled={lists.length >= 5}
-              size={isXsScreen ? "small" : "medium"}
-              fullWidth={isMobile}
-            >
-              Add List ({lists.length}/5)
-            </Button>
+            <Box sx={{ position: "relative" }}>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => handleAddList("Default")}
+                disabled={lists.length >= 5 || isAddingList}
+                size={isXsScreen ? "small" : "medium"}
+                fullWidth={isMobile}
+              >
+                Add List ({lists.length}/5)
+              </Button>
+            </Box>
             {categories.length > 1 && (
               <Box
                 sx={{
@@ -207,7 +233,7 @@ const ControlPanel = ({
                     key={category}
                     label={category}
                     size="small"
-                    onClick={() => onAddList(category)}
+                    onClick={() => handleAddList(category)}
                     clickable
                   />
                 ))}

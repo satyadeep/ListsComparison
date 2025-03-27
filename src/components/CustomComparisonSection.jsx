@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
@@ -22,6 +22,36 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import { handleComparisonTypeChange } from "../utils/listUtils";
 import VirtualizedList from "./VirtualizedList";
 import { getSortedItems } from "../utils/listUtils";
+import LoadingOverlay from "./LoadingOverlay";
+
+// Create a standalone function for intersection button
+const IntersectionButton = ({ comparisonType, onClick }) => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
+
+  return (
+    <ToggleButton
+      value="intersection"
+      aria-label="intersection"
+      onClick={onClick}
+      selected={comparisonType === "intersection"}
+      sx={{
+        "&.Mui-selected": {
+          backgroundColor: isDarkMode ? "rgba(140, 107, 196, 0.7)" : "#8c6bc4",
+          color: "white",
+          "&:hover": {
+            backgroundColor: isDarkMode
+              ? "rgba(140, 107, 196, 0.8)"
+              : "#7250b5",
+            color: "white",
+          },
+        },
+      }}
+    >
+      Intersection (∩)
+    </ToggleButton>
+  );
+};
 
 const CustomComparisonSection = ({
   lists,
@@ -39,6 +69,12 @@ const CustomComparisonSection = ({
 }) => {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [overlayMessage, setOverlayMessage] = useState({
+    message: "",
+    subMessage: "",
+  });
+  const timerRef = useRef(null);
 
   // Get a distinct list ID for the custom results
   const customListId = "custom-comparison";
@@ -93,8 +129,163 @@ const CustomComparisonSection = ({
         }: ${selectedListNames}`
       : "Select at least two lists to compare";
 
+  // Simple function to show overlay with specific message
+  const showOverlay = (type) => {
+    // Clear any existing timers
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    // Set appropriate messages based on type
+    if (type === "intersection") {
+      setOverlayMessage({
+        message: "Calculating intersection...",
+        subMessage: "Finding common items between selected lists",
+      });
+    } else {
+      setOverlayMessage({
+        message: "Calculating union...",
+        subMessage: "Combining all unique items from selected lists",
+      });
+    }
+
+    // Show the overlay
+    setIsCalculating(true);
+
+    // Set timer to hide overlay after delay
+    timerRef.current = setTimeout(() => {
+      setIsCalculating(false);
+    }, 1000);
+  };
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  // Direct click handlers for intersection and union operations
+  const handleIntersectionClick = () => {
+    // First update the comparison type
+    setComparisonType("intersection");
+
+    // Show overlay immediately if we have enough lists selected
+    if (selectedLists.length >= 2) {
+      // Set overlay message immediately before showing overlay
+      setOverlayMessage({
+        message: "Calculating intersection...",
+        subMessage: "Finding common items between selected lists",
+      });
+
+      // Show overlay after message is set
+      setTimeout(() => {
+        setIsCalculating(true);
+
+        // Hide loading state after a brief delay
+        setTimeout(() => {
+          setIsCalculating(false);
+        }, 1000);
+      }, 0);
+    }
+  };
+
+  const handleUnionClick = () => {
+    // First update the comparison type
+    setComparisonType("union");
+
+    // Show overlay immediately if we have enough lists selected
+    if (selectedLists.length >= 2) {
+      // Set overlay message immediately before showing overlay
+      setOverlayMessage({
+        message: "Calculating union...",
+        subMessage: "Combining all unique items from selected lists",
+      });
+
+      // Show overlay after message is set
+      setTimeout(() => {
+        setIsCalculating(true);
+
+        // Hide loading state after a brief delay
+        setTimeout(() => {
+          setIsCalculating(false);
+        }, 1000);
+      }, 0);
+    }
+  };
+
+  // Update the handleListToggle function to show loading state
+  const handleListToggle = (listId) => {
+    let newSelected = [...selectedLists];
+
+    if (newSelected.includes(listId)) {
+      newSelected = newSelected.filter((id) => id !== listId);
+    } else {
+      newSelected.push(listId);
+    }
+
+    // Show loading state when changing selection
+    setIsCalculating(true);
+
+    // Use setTimeout to ensure UI updates before calculation
+    setTimeout(() => {
+      setSelectedLists(newSelected);
+
+      // Hide loading state after a brief delay
+      setTimeout(() => {
+        setIsCalculating(false);
+      }, 800);
+    }, 50);
+  };
+
+  // Track when dropdown is open to avoid processing during selection
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // Enhanced function to handle list selection changes
+  const handleListSelectionChange = (event) => {
+    const newSelected = event.target.value;
+    // Only process changes when the dropdown is closed (user completed their selection)
+    if (!isDropdownOpen) {
+      setIsCalculating(true);
+
+      // Use requestAnimationFrame to ensure UI updates before calculation
+      requestAnimationFrame(() => {
+        setSelectedLists(newSelected);
+
+        // Hide loading state after processing
+        setTimeout(() => {
+          setIsCalculating(false);
+        }, 800);
+      });
+    } else {
+      // If dropdown is still open, just update the selection without processing
+      setSelectedLists(newSelected);
+    }
+  };
+
+  // Handle dropdown open/close events
+  const handleDropdownOpen = () => {
+    setIsDropdownOpen(true);
+  };
+
+  const handleDropdownClose = () => {
+    setIsDropdownOpen(false);
+
+    // Process comparison after dropdown closes if we have enough lists selected
+    if (selectedLists.length >= 2) {
+      setIsCalculating(true);
+
+      // Small delay to ensure UI updates before processing
+      setTimeout(() => {
+        // Just trigger calculation by setting calculating state
+        // The result is already calculated by the parent component's useEffect
+        setTimeout(() => {
+          setIsCalculating(false);
+        }, 800);
+      }, 100);
+    }
+  };
+
   return (
-    <Box sx={{ mt: 4, width: "100%" }}>
+    <Box sx={{ mt: 4 }}>
       <Typography variant="h5" gutterBottom>
         Custom List Comparison
       </Typography>
@@ -118,7 +309,9 @@ const CustomComparisonSection = ({
             multiple
             input={<OutlinedInput label="Select Lists to Compare" />}
             value={selectedLists}
-            onChange={(e) => setSelectedLists(e.target.value)}
+            onChange={handleListSelectionChange}
+            onOpen={handleDropdownOpen}
+            onClose={handleDropdownClose}
             renderValue={(selected) =>
               selected
                 .map((id) => {
@@ -148,35 +341,18 @@ const CustomComparisonSection = ({
           <ToggleButtonGroup
             value={comparisonType}
             exclusive
-            onChange={(event, newType) =>
-              handleComparisonTypeChange(event, newType, setComparisonType)
-            }
+            onChange={(event, newType) => newType && setComparisonType(newType)}
             aria-label="comparison type"
             size="small"
           >
-            <ToggleButton
-              value="intersection"
-              aria-label="intersection"
-              sx={{
-                "&.Mui-selected": {
-                  backgroundColor: isDarkMode
-                    ? "rgba(140, 107, 196, 0.7)"
-                    : "#8c6bc4",
-                  color: "white",
-                  "&:hover": {
-                    backgroundColor: isDarkMode
-                      ? "rgba(140, 107, 196, 0.8)"
-                      : "#7250b5",
-                    color: "white",
-                  },
-                },
-              }}
-            >
-              Intersection (∩)
-            </ToggleButton>
+            <IntersectionButton
+              comparisonType={comparisonType}
+              onClick={handleIntersectionClick}
+            />
             <ToggleButton
               value="union"
               aria-label="union"
+              onClick={handleUnionClick}
               sx={{
                 "&.Mui-selected": {
                   backgroundColor: isDarkMode
@@ -198,7 +374,7 @@ const CustomComparisonSection = ({
         </Box>
       </Box>
 
-      {/* Results Panel */}
+      {/* Results Panel with position: relative for proper overlay positioning */}
       <Paper
         elevation={3}
         sx={{
@@ -208,6 +384,7 @@ const CustomComparisonSection = ({
           borderLeft: `4px solid ${getBorderColor()}`,
           backgroundColor: getBackgroundColor(),
           color: theme.palette.text.primary,
+          position: "relative", // Add position relative for the overlay
         }}
       >
         <Box
@@ -306,6 +483,14 @@ const CustomComparisonSection = ({
           >
             <VirtualizedList items={sortedItems} height={250} />
           </Box>
+        )}
+
+        {/* Add loading overlay only over the results panel */}
+        {isCalculating && (
+          <LoadingOverlay
+            message={overlayMessage.message}
+            subMessage={overlayMessage.subMessage}
+          />
         )}
       </Paper>
     </Box>
