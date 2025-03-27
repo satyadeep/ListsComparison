@@ -8,13 +8,15 @@ const ListPlaceholder = ({ active, category }) => {
     <Paper
       elevation={2}
       sx={{
-        height: "200px",
+        height: "225px", // Precisely match textarea height
         width: "100%",
         position: "relative",
         bgcolor: "background.paper",
-        border: "1px dashed #aaa",
+        border: "1px solid rgba(0, 0, 0, 0.12)",
+        borderRadius: "4px",
         p: 2,
         mb: 3,
+        boxShadow: (theme) => theme.shadows[1],
       }}
     >
       <Box
@@ -28,14 +30,21 @@ const ListPlaceholder = ({ active, category }) => {
           alignItems: "center",
           justifyContent: "center",
           flexDirection: "column",
-          backgroundColor: "rgba(0, 0, 0, 0.6)",
+          backgroundColor: "rgba(0, 0, 0, 0.7)",
           backdropFilter: "blur(2px)",
           zIndex: 2,
           borderRadius: "4px",
         }}
       >
-        <CircularProgress size={40} color="primary" />
-        <Typography sx={{ mt: 2, color: "white", fontWeight: "medium" }}>
+        <CircularProgress size={40} thickness={4} color="primary" />
+        <Typography
+          sx={{
+            mt: 2,
+            color: "white",
+            fontWeight: 500,
+            fontSize: "1rem",
+          }}
+        >
           Creating new {category} list...
         </Typography>
       </Box>
